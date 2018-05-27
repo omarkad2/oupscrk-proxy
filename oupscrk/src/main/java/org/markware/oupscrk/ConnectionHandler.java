@@ -154,7 +154,13 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	private void doGet(HttpRequestParser requestParsed) {
+		int contentLength = requestParsed.getHeaderParam("Content-Length") != null ? 
+							Integer.parseInt(requestParsed.getHeaderParam("Content-Length")) : 0;
+		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
 		
+		if ('/' == requestParsed.getPath().charAt(0)) {
+			
+		}
 	}
 
 	/**

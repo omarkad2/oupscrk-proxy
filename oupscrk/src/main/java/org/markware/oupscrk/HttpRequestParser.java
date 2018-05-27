@@ -86,7 +86,7 @@ public class HttpRequestParser {
 	 		// Remove everything past next space
 	 		urlString = urlString.substring(0, urlString.indexOf(' '));
 	 		
-	 		if(!urlString.substring(0,6).equals("http://")){
+	 		if(!urlString.substring(0,7).equals("http://")){
 				String temp = "http://";
 				urlString = temp + urlString;
 			}
