@@ -11,7 +11,10 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.nio.charset.Charset;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.zip.DataFormatException;
 
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
@@ -45,6 +48,10 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private Thread clientToServerThread;
 
+	private static final List<String> HEADERS_TO_REMOVE = Collections.unmodifiableList(
+		    Arrays.asList("connection", "keep-alive", "proxy-authenticate", 
+			"proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"));
+	
 	/**
 	 * Constructor
 	 * @param clientSocket
@@ -152,14 +159,14 @@ public class ConnectionHandler implements Runnable {
 			} else {
 				try {
 					doGet(requestParsed);
-				} catch (IOException e) {
+				} catch (IOException | DataFormatException e) {
 					e.printStackTrace();
 				}
 			}
 		}
 	}
 
-	private void doGet(HttpRequestParser requestParsed) throws IOException {
+	private void doGet(HttpRequestParser requestParsed) throws IOException, DataFormatException {
 		URL url = requestParsed.getUrl();
 		String httpMethod = requestParsed.getRequestType();
 		int contentLength = requestParsed.getHeaderParam("Content-Length") != null ? 
@@ -168,26 +175,64 @@ public class ConnectionHandler implements Runnable {
 
 		HttpClient httpClient = new HttpClient();
 		GetMethod httpGet = new GetMethod(url.toString());
+		requestParsed.getHeaders().entrySet().forEach((entry)-> {
+			httpGet.setRequestHeader(entry.getKey(), entry.getValue());
+		});
 		
 		httpClient.executeMethod(httpGet);
-		
+		String encodingAlg = httpGet.getResponseHeader("Content-Encoding") != null ? 
+				httpGet.getResponseHeader("Content-Encoding").getValue() : null;
+
 		// Decode Response Body
-		
+		String responsePlainBody = decodeContentBody(httpGet.getResponseBodyAsString(), encodingAlg);
 		
 		// Store plain response body
-		
+		System.out.println(responsePlainBody);
 		
 		// Encode Response Body
+		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
 		
 		// Send Response to client
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
 		
 		for (Header h : httpGet.getResponseHeaders()) {
-			this.proxyToClientBw.write(h.toString());
+			if (! HEADERS_TO_REMOVE.contains(h.getName())) {
+				this.proxyToClientBw.write(h.toString());
+			}
 		}
 		
-		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
+		this.proxyToClientBw.write(responseBody);
 		this.proxyToClientBw.flush();
+	}
+
+	public String encodeContentBody(String plainBody, String encodingAlg) throws IOException {
+		String result = plainBody;
+		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
+			return result;
+		}
+		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
+			result = CompressionUtils.gzipCompress(plainBody);
+		} else if ("deflate".equals(encodingAlg)) {
+			result = CompressionUtils.zlibCompress(plainBody);
+		} else {
+			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
+		}
+		return result;
+	}
+	
+	public String decodeContentBody(String encodedBody, String encodingAlg) throws IOException, DataFormatException {
+		String result = encodedBody;
+		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
+			return result;
+		}
+		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
+			result = CompressionUtils.gzipDecompress(encodedBody);
+		} else if ("deflate".equals(encodingAlg)) {
+			result = CompressionUtils.zlibDecompress(encodedBody);
+		} else {
+			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
+		}
+		return result;
 	}
 
 	/**

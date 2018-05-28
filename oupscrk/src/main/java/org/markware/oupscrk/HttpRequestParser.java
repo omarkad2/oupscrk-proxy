@@ -4,10 +4,17 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Hashtable;
+import java.util.List;
 
 public class HttpRequestParser {
 
+	private static final List<String> HEADERS_TO_REMOVE = Collections.unmodifiableList(
+		    Arrays.asList("connection", "keep-alive", "proxy-authenticate", 
+			"proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"));
+	
     private String requestLine;
     private String command;
     private URL url;
@@ -110,13 +117,25 @@ public class HttpRequestParser {
 		}
     }
 
-    private void appendHeaderParameter(String header) {
+    public Hashtable<String, String> getHeaders() {
+		return headers;
+	}
+
+	public void setHeaders(Hashtable<String, String> headers) {
+		this.headers = headers;
+	}
+
+	private void appendHeaderParameter(String header) {
         int idx = header.indexOf(":");
         if (idx == -1) {
         	System.out.println("Invalid Header Parameter: " + header);
         	return;
         }
-        headers.put(header.substring(0, idx), header.substring(idx + 1, header.length()));
+        String headerName = header.substring(0, idx);
+        String headerValue = header.substring(idx + 1, header.length());
+        if (!HEADERS_TO_REMOVE.contains(headerName)) {
+        	headers.put(headerName, headerValue);
+        }
     }
 
     public String getMessageBody() {
