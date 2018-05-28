@@ -9,10 +9,14 @@ import java.util.Hashtable;
 public class HttpRequestParser {
 
     private String requestLine;
-    private String requestType;
+    private String command;
+    private URL url;
+    private String httpVersion;
+    private String scheme;
     private String hostname;
     private String path;
-    private int port;
+
+	private int port;
     
 	private Hashtable<String, String> headers;
     private StringBuffer body;
@@ -22,51 +26,29 @@ public class HttpRequestParser {
         body = new StringBuffer();
     }
 
-    /**
-     * Parse and HTTP request.
-     * 
-     * @param request
-     *            String holding http request.
-     * @throws IOException
-     *             If an I/O error occurs reading the input stream.
-     * @throws HttpFormatException
-     *             If HTTP Request is malformed
-     */
     public void parseRequest(BufferedReader reader) throws IOException {
+    	
+    	if (reader.ready()) {
+    		// REQUEST LINE
+        	setRequestLine(reader.readLine());
 
-    	// REQUEST LINE
-    	if (reader.ready()) {
-    		setRequestLine(reader.readLine());
+        	// HEADER
+        	String header = reader.readLine();
+        	while (header.length() > 0) {
+        		appendHeaderParameter(header);
+        		header = reader.readLine();
+        	}
     	}
     	
-    	// HEADER
-    	if (reader.ready()) {
-	        String header = reader.readLine();
-	        while (header.length() > 0) {
-	            appendHeaderParameter(header);
-	            header = reader.readLine();
-	        }
-    	}
-    	
+
     	// BODY
-        if (reader.ready()) {
-	        String bodyLine = reader.readLine();
-	        while (bodyLine != null) {
-	            appendMessageBody(bodyLine);
-	            bodyLine = reader.readLine();
-	        }
-        }
+//    	String bodyLine = reader.readLine();
+//    	while (bodyLine != null) {
+//    		appendMessageBody(bodyLine);
+//    		bodyLine = reader.readLine();
+//    	}
     }
 
-    /**
-     * 
-     * 5.1 Request-Line The Request-Line begins with a method token, followed by
-     * the Request-URI and the protocol version, and ending with CRLF. The
-     * elements are separated by SP characters. No CR or LF is allowed except in
-     * the final CRLF sequence.
-     * 
-     * @return String with Request-Line
-     */
     public String getRequestLine() {
         return requestLine;
     }
@@ -77,26 +59,38 @@ public class HttpRequestParser {
 	            System.out.println("Invalid Request-Line: " + requestLine);
 	        }
 	        this.requestLine = requestLine;
+	        
+	        // requestLine parts
+	        String[] requestLineParts = requestLine.split(" ");
+	        
 	        // Get the Request type
-	 		this.requestType = requestLine.substring(0,requestLine.indexOf(' '));
+	 		this.command = requestLineParts[0];
 	
-	 		// remove request type and space
-	 		String urlString = requestLine.substring(requestLine.indexOf(' ')+1);
-	
-	 		// Remove everything past next space
-	 		urlString = urlString.substring(0, urlString.indexOf(' '));
+	 		String urlString = requestLineParts[1];
 	 		
-	 		if(!urlString.substring(0,7).equals("http://")){
-				String temp = "http://";
-				urlString = temp + urlString;
-			}
+	 		this.httpVersion = requestLineParts[2];
 	 		
-	 		String pieces[] = urlString.substring(7).split(":");
-			URL url = new URL(pieces[0].startsWith("https://") 
-								|| pieces[0].startsWith("http://") ? pieces[0] : "http://" + pieces[0]);
-			this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
-			this.hostname = url.getHost();
-			this.path = url.getPath();
+	 		String[] pieces;
+	 		if (urlString.startsWith("https://")) {
+	 			this.scheme = "https";
+	 			pieces = urlString.substring(8).split(":");
+	 		} else if (urlString.startsWith("http://")) {
+	 			this.scheme = "http";
+	 			pieces = urlString.substring(7).split(":");
+	 		} else {
+	 			pieces = urlString.split(":");
+	 		}
+	 		this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
+	 		
+	 		if (this.scheme == null) {
+	 			this.scheme = this.port == 443 ? "https" : "http";
+	 		}
+	 		
+			this.url = new URL(pieces[0].startsWith("https://") 
+								|| pieces[0].startsWith("http://") ? pieces[0] : this.scheme + "://" + pieces[0]);
+			
+			this.hostname = this.url.getHost();
+			this.path = this.url.getPath();
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
@@ -111,14 +105,6 @@ public class HttpRequestParser {
         headers.put(header.substring(0, idx), header.substring(idx + 1, header.length()));
     }
 
-    /**
-     * The message-body (if any) of an HTTP message is used to carry the
-     * entity-body associated with the request or response. The message-body
-     * differs from the entity-body only when a transfer-coding has been
-     * applied, as indicated by the Transfer-Encoding header field (section
-     * 14.41).
-     * @return String with message-body
-     */
     public String getMessageBody() {
         return body.toString();
     }
@@ -127,17 +113,12 @@ public class HttpRequestParser {
         body.append(bodyLine).append("\r\n");
     }
 
-    /**
-     * For list of available headers refer to sections: 4.5, 5.3, 7.1 of RFC 2616
-     * @param headerName Name of header
-     * @return String with the value of the header or null if not found.
-     */
     public String getHeaderParam(String headerName){
         return headers.get(headerName);
     }
     
     public String getRequestType() {
-		return requestType;
+		return command;
 	}
 
 	public String getHostname() {
@@ -150,5 +131,17 @@ public class HttpRequestParser {
 
 	public int getPort() {
 		return port;
+	}
+	
+	public URL getUrl() {
+		return url;
+	}
+
+	public String getHttpVersion() {
+		return httpVersion;
+	}
+
+	public String getScheme() {
+		return scheme;
 	}
 }

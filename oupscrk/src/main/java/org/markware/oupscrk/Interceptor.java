@@ -20,6 +20,7 @@ public class Interceptor {
 		Interceptor interceptor = new Interceptor(port);
 		interceptor.listen();
 		
+		System.out.println("Proxy listening on port : " + port);
 	}
 	
 	/**

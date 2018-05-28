@@ -10,6 +10,12 @@ import java.io.OutputStreamWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URL;
+import java.nio.charset.Charset;
+
+import org.apache.commons.httpclient.Header;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.GetMethod;
 
 /**
  * 
@@ -22,23 +28,23 @@ public class ConnectionHandler implements Runnable {
 	 * Client socket
 	 */
 	private Socket clientSocket;
-	
+
 	/**
 	 * Read data client sends to proxy
 	 */
-	BufferedReader proxyToClientBr;
+	private BufferedReader proxyToClientBr;
 
 	/**
 	 * Send data from proxy to client
 	 */
-	BufferedWriter proxyToClientBw;
-	
+	private BufferedWriter proxyToClientBw;
+
 
 	/**
 	 * Thread that is used to transmit data read from client to server 
 	 */
 	private Thread clientToServerThread;
-	
+
 	/**
 	 * Constructor
 	 * @param clientSocket
@@ -54,7 +60,7 @@ public class ConnectionHandler implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * 
 	 */
@@ -64,103 +70,116 @@ public class ConnectionHandler implements Runnable {
 		HttpRequestParser requestParsed = new HttpRequestParser();
 		try{
 			requestParsed.parseRequest(proxyToClientBr);
+			System.out.println(requestParsed.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.out.println("Error parsing HTTP request from client" + e.getMessage());
 			return;
 		}
 
-		String requestLine = requestParsed.getRequestLine();
-		System.out.println(requestLine);
-		
-		try {
-			// Client and Remote will both start sending data to proxy at this point
-			// Proxy needs to asynchronously read data from each party and send it to the other party
-			
-			// Get actual IP associated with this URL through DNS
-			InetAddress address = InetAddress.getByName(requestParsed.getHostname());
-			
-			System.out.println("HOSTNAME : " + requestParsed.getHostname());
-			// Open a socket to the remote server 
-			Socket proxyToServerSocket = new Socket(address, requestParsed.getPort());
-			proxyToServerSocket.setSoTimeout(5000);
-						
- 			if("CONNECT".equals(requestParsed.getRequestType())){
-				// Send Connection established to the client
-				String line = "HTTP/1.0 200 Connection established\r\n" +
-						"Proxy-Agent: ProxyServer/1.0\r\n" +
-						"\r\n";
-				proxyToClientBw.write(line);
-				proxyToClientBw.flush();
-			} else {
-				doGet(requestParsed);
-			}
-			
-			// Create a new thread to listen to client and transmit to server
-			ClientToServerHttpsTransmit clientToServerHttps = 
-					new ClientToServerHttpsTransmit(clientSocket.getInputStream(), proxyToServerSocket.getOutputStream());
-			
-			clientToServerThread = new Thread(clientToServerHttps);
-			clientToServerThread.start();
-			
-			
-			// Listen to remote server and relay to client
-			try {
-				byte[] buffer = new byte[4096];
-				int read;
-				do {
-					read = proxyToServerSocket.getInputStream().read(buffer);
-					if (read > 0) {
-						clientSocket.getOutputStream().write(buffer, 0, read);
-						if (proxyToServerSocket.getInputStream().available() < 1) {
-							clientSocket.getOutputStream().flush();
-						}
+		if (requestParsed.getUrl() != null) {
+			if("CONNECT".equals(requestParsed.getRequestType())){
+				try {
+					// Client and Remote will both start sending data to proxy at this point
+					// Proxy needs to asynchronously read data from each party and send it to the other party
+
+					// Get actual IP associated with this URL through DNS
+					InetAddress address = InetAddress.getByName(requestParsed.getHostname());
+
+					// Open a socket to the remote server 
+					Socket proxyToServerSocket = new Socket(address, requestParsed.getPort());
+					proxyToServerSocket.setSoTimeout(5000);
+					// Send Connection established to the client
+					String line = "HTTP/1.0 200 Connection established\r\n" +
+							"Proxy-Agent: ProxyServer/1.0\r\n" +
+							"\r\n";
+					proxyToClientBw.write(line);
+					proxyToClientBw.flush();
+
+					// Create a new thread to listen to client and transmit to server
+					ClientToServerHttpsTransmit clientToServerHttps = 
+							new ClientToServerHttpsTransmit(clientSocket.getInputStream(), proxyToServerSocket.getOutputStream());
+
+					clientToServerThread = new Thread(clientToServerHttps);
+					clientToServerThread.start();
+
+
+					// Listen to remote server and relay to client
+					try {
+						byte[] buffer = new byte[4096];
+						int read;
+						do {
+							read = proxyToServerSocket.getInputStream().read(buffer);
+							if (read > 0) {
+								clientSocket.getOutputStream().write(buffer, 0, read);
+								if (proxyToServerSocket.getInputStream().available() < 1) {
+									clientSocket.getOutputStream().flush();
+								}
+							}
+						} while (read >= 0);
 					}
-				} while (read >= 0);
+					catch (SocketTimeoutException e) {
+
+					}
+					catch (IOException e) {
+						e.printStackTrace();
+					}
+
+					// Close Down Resources
+					if(proxyToServerSocket != null){
+						proxyToServerSocket.close();
+					}
+
+					if(proxyToClientBw != null){
+						proxyToClientBw.close();
+					}
+
+				} catch (SocketTimeoutException e) {
+					String line = "HTTP/1.0 504 Timeout Occured after 10s\n" +
+							"User-Agent: ProxyServer/1.0\n" +
+							"\r\n";
+					try{
+						proxyToClientBw.write(line);
+						proxyToClientBw.flush();
+					} catch (IOException ioe) {
+						ioe.printStackTrace();
+					}
+				} 
+				catch (Exception e){
+					System.out.println("Error on HTTPS : ");
+					e.printStackTrace();
+				}
+			} else {
+				try {
+					doGet(requestParsed);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
-			catch (SocketTimeoutException e) {
-				
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-	
-	
-			// Close Down Resources
-			if(proxyToServerSocket != null){
-				proxyToServerSocket.close();
-			}
-	
-			if(proxyToClientBw != null){
-				proxyToClientBw.close();
-			}
-			
-			
-		} catch (SocketTimeoutException e) {
-			String line = "HTTP/1.0 504 Timeout Occured after 10s\n" +
-					"User-Agent: ProxyServer/1.0\n" +
-					"\r\n";
-			try{
-				proxyToClientBw.write(line);
-				proxyToClientBw.flush();
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-			}
-		} 
-		catch (Exception e){
-			System.out.println("Error on HTTPS : " + requestParsed.getHostname());
-			e.printStackTrace();
 		}
 	}
 
-	private void doGet(HttpRequestParser requestParsed) {
+	private void doGet(HttpRequestParser requestParsed) throws IOException {
+		URL url = requestParsed.getUrl();
+		String httpMethod = requestParsed.getRequestType();
 		int contentLength = requestParsed.getHeaderParam("Content-Length") != null ? 
-							Integer.parseInt(requestParsed.getHeaderParam("Content-Length")) : 0;
+				Integer.parseInt(requestParsed.getHeaderParam("Content-Length").trim()) : 0;
 		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
+
+		HttpClient httpClient = new HttpClient();
+		GetMethod httpGet = new GetMethod(url.toString());
 		
-		if ('/' == requestParsed.getPath().charAt(0)) {
-			
+		httpClient.executeMethod(httpGet);
+		
+		
+		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
+		
+		for (Header h : httpGet.getResponseHeaders()) {
+			this.proxyToClientBw.write(h.toString());
 		}
+		
+		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
+		this.proxyToClientBw.flush();
 	}
 
 	/**
@@ -170,10 +189,10 @@ public class ConnectionHandler implements Runnable {
 	 * that data to the client. 
 	 */
 	class ClientToServerHttpsTransmit implements Runnable{
-		
+
 		InputStream proxyToClientIS;
 		OutputStream proxyToServerOS;
-		
+
 		/**
 		 * Creates Object to Listen to Client and Transmit that data to the server
 		 * @param proxyToClientIS Stream that proxy uses to receive data from client
