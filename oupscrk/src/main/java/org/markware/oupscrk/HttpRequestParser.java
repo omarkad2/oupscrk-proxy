@@ -30,31 +30,45 @@ public class HttpRequestParser {
     	
     	if (reader.ready()) {
     		// REQUEST LINE
-        	setRequestLine(reader.readLine());
+        	setRequestLine(reader);
 
         	// HEADER
-        	String header = reader.readLine();
-        	while (header.length() > 0) {
-        		appendHeaderParameter(header);
-        		header = reader.readLine();
-        	}
+        	setHeaders(reader);
+        	
+        	// BODY
+//        	setBody(reader);
     	}
-    	
+    }
 
-    	// BODY
-//    	String bodyLine = reader.readLine();
-//    	while (bodyLine != null) {
-//    		appendMessageBody(bodyLine);
-//    		bodyLine = reader.readLine();
-//    	}
+    public void setHeaders(BufferedReader reader) throws IOException {
+		String header = reader.readLine();
+    	while (header.length() > 0) {
+    		if ("\r\n".equals(header.trim())) {
+    			// header ends
+    			return;
+    		} else {
+    			appendHeaderParameter(header);
+    			header = reader.readLine();
+    		}
+    	}
+    }
+    
+    public void setBody(BufferedReader reader) throws IOException {
+		String bodyLine = reader.readLine();
+    	while (bodyLine != null) {
+    		appendMessageBody(bodyLine);
+    		if (reader.ready())
+    			bodyLine = reader.readLine();
+    	}
     }
 
     public String getRequestLine() {
         return requestLine;
     }
 
-    private void setRequestLine(String requestLine) {
+    private void setRequestLine(BufferedReader reader) throws IOException {
     	try {
+    		String requestLine = reader.readLine();
 	        if (requestLine == null || requestLine.length() == 0) {
 	            System.out.println("Invalid Request-Line: " + requestLine);
 	        }

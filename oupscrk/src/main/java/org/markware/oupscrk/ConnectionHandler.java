@@ -171,7 +171,15 @@ public class ConnectionHandler implements Runnable {
 		
 		httpClient.executeMethod(httpGet);
 		
+		// Decode Response Body
 		
+		
+		// Store plain response body
+		
+		
+		// Encode Response Body
+		
+		// Send Response to client
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
 		
 		for (Header h : httpGet.getResponseHeaders()) {
