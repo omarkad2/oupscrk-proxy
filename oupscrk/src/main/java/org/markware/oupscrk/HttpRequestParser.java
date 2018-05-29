@@ -133,9 +133,7 @@ public class HttpRequestParser {
         }
         String headerName = header.substring(0, idx);
         String headerValue = header.substring(idx + 1, header.length());
-        if (!HEADERS_TO_REMOVE.contains(headerName)) {
-        	headers.put(headerName, headerValue);
-        }
+    	headers.put(headerName, headerValue);
     }
 
     public String getMessageBody() {

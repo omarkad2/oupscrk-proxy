@@ -177,7 +177,9 @@ public class ConnectionHandler implements Runnable {
 		HttpClient httpClient = new HttpClient();
 		GetMethod httpGet = new GetMethod(url.toString());
 		requestParsed.getHeaders().entrySet().forEach((entry)-> {
-			httpGet.setRequestHeader(entry.getKey(), entry.getValue());
+			if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
+				httpGet.setRequestHeader(entry.getKey(), entry.getValue());
+			}
 		});
 		
 		httpClient.executeMethod(httpGet);
@@ -187,6 +189,7 @@ public class ConnectionHandler implements Runnable {
 		// Decode Response Body
 		String responsePlainBody = decodeContentBody(httpGet.getResponseBody(), encodingAlg);
 		
+		System.out.println(httpGet.getResponseBody().length);
 		// Store plain response body
 		System.out.println(responsePlainBody);
 		
@@ -198,23 +201,13 @@ public class ConnectionHandler implements Runnable {
 		
 		for (Header h : httpGet.getResponseHeaders()) {
 			if (! HEADERS_TO_REMOVE.contains(h.getName())) {
-				this.proxyToClientBw.write(h.toString());
+				clientSocket.getOutputStream().write(h.toString().getBytes());
 			}
 		}
-		
-		byte[] buffer = new byte[4096];
-		int read;
-		do {
-			read = proxyToServerSocket.getInputStream().read(buffer);
-			if (read > 0) {
-				clientSocket.getOutputStream().write(buffer, 0, read);
-				if (proxyToServerSocket.getInputStream().available() < 1) {
-					clientSocket.getOutputStream().flush();
-				}
-			}
-		} while (read >= 0);
-		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
-		this.proxyToClientBw.flush();
+		clientSocket.getOutputStream().write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
+		clientSocket.getOutputStream().flush();
+//		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
+//		this.proxyToClientBw.flush();
 	}
 
 	public byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
