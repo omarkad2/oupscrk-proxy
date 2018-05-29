@@ -14,18 +14,18 @@ import java.util.zip.Inflater;
 
 public class CompressionUtils {  
 
-	public static String gzipCompress(String data) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length());
+	public static byte[] gzipCompress(byte[] data) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length);
 		GZIPOutputStream gzip = new GZIPOutputStream(bos);
-		gzip.write(data.getBytes());
+		gzip.write(data);
 		gzip.close();
 		byte[] compressed = bos.toByteArray();
 		bos.close();
-		return new String(compressed, StandardCharsets.UTF_8);
+		return compressed;
 	}
 	
-	public static String gzipDecompress(String compressed) throws IOException {
-		ByteArrayInputStream bis = new ByteArrayInputStream(compressed.getBytes());
+	public static String gzipDecompress(byte[] compressed) throws IOException {
+		ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
 		GZIPInputStream gis = new GZIPInputStream(bis);
 		BufferedReader br = new BufferedReader(new InputStreamReader(gis, "UTF-8"));
 		StringBuilder sb = new StringBuilder();
@@ -39,10 +39,10 @@ public class CompressionUtils {
 		return sb.toString();
 	}
 	
-	public static String zlibCompress(String data) throws IOException {  
+	public static byte[] zlibCompress(byte[] data) throws IOException {  
 		Deflater deflater = new Deflater();  
-		deflater.setInput(data.getBytes());  
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length());   
+		deflater.setInput(data);  
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);   
 		deflater.finish();  
 		byte[] buffer = new byte[1024];   
 		while (!deflater.finished()) {  
@@ -51,14 +51,14 @@ public class CompressionUtils {
 		}  
 		outputStream.close();  
 		byte[] output = outputStream.toByteArray();  
-		return new String(output, StandardCharsets.UTF_8);
+		return output;
 
 	}  
 
-	public static String zlibDecompress(String data) throws IOException, DataFormatException {  
+	public static byte[] zlibDecompress(byte[] data) throws IOException, DataFormatException {  
 		Inflater inflater = new Inflater();   
-		inflater.setInput(data.getBytes());  
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length());  
+		inflater.setInput(data);  
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);  
 		byte[] buffer = new byte[1024];  
 		while (!inflater.finished()) {  
 			int count = inflater.inflate(buffer);  
@@ -66,7 +66,7 @@ public class CompressionUtils {
 		}  
 		outputStream.close();  
 		byte[] output = outputStream.toByteArray();  
-		return new String(output, StandardCharsets.UTF_8);  
+		return output;  
 
 	}  
 }

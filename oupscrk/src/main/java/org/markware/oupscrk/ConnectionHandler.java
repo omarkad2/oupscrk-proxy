@@ -11,6 +11,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -184,13 +185,13 @@ public class ConnectionHandler implements Runnable {
 				httpGet.getResponseHeader("Content-Encoding").getValue() : null;
 
 		// Decode Response Body
-		String responsePlainBody = decodeContentBody(httpGet.getResponseBodyAsString(), encodingAlg);
+		String responsePlainBody = decodeContentBody(httpGet.getResponseBody(), encodingAlg);
 		
 		// Store plain response body
 		System.out.println(responsePlainBody);
 		
 		// Encode Response Body
-		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
+//		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
 		
 		// Send Response to client
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
@@ -201,34 +202,45 @@ public class ConnectionHandler implements Runnable {
 			}
 		}
 		
-		this.proxyToClientBw.write(responseBody);
+		byte[] buffer = new byte[4096];
+		int read;
+		do {
+			read = proxyToServerSocket.getInputStream().read(buffer);
+			if (read > 0) {
+				clientSocket.getOutputStream().write(buffer, 0, read);
+				if (proxyToServerSocket.getInputStream().available() < 1) {
+					clientSocket.getOutputStream().flush();
+				}
+			}
+		} while (read >= 0);
+		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
 		this.proxyToClientBw.flush();
 	}
 
-	public String encodeContentBody(String plainBody, String encodingAlg) throws IOException {
-		String result = plainBody;
+	public byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
+		byte[] result = null;
 		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
-			return result;
+			return encodingAlg.getBytes();
 		}
 		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
-			result = CompressionUtils.gzipCompress(plainBody);
+			result = CompressionUtils.gzipCompress(plainBody.getBytes());
 		} else if ("deflate".equals(encodingAlg)) {
-			result = CompressionUtils.zlibCompress(plainBody);
+			result = CompressionUtils.zlibCompress(plainBody.getBytes());
 		} else {
 			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
 		}
 		return result;
 	}
 	
-	public String decodeContentBody(String encodedBody, String encodingAlg) throws IOException, DataFormatException {
-		String result = encodedBody;
+	public String decodeContentBody(byte[] encodedBody, String encodingAlg) throws IOException, DataFormatException {
+		String result = new String(encodedBody, StandardCharsets.UTF_8);
 		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
 			return result;
 		}
 		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
 			result = CompressionUtils.gzipDecompress(encodedBody);
 		} else if ("deflate".equals(encodingAlg)) {
-			result = CompressionUtils.zlibDecompress(encodedBody);
+			result = new String(CompressionUtils.zlibDecompress(encodedBody), StandardCharsets.UTF_8);
 		} else {
 			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
 		}
