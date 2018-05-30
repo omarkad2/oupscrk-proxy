@@ -19,6 +19,7 @@ import java.util.zip.DataFormatException;
 
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 
 /**
@@ -175,7 +176,10 @@ public class ConnectionHandler implements Runnable {
 		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
 
 		HttpClient httpClient = new HttpClient();
+		httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
+		
 		GetMethod httpGet = new GetMethod(url.toString());
+		
 		requestParsed.getHeaders().entrySet().forEach((entry)-> {
 			if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
 				httpGet.setRequestHeader(entry.getKey(), entry.getValue());
@@ -197,17 +201,36 @@ public class ConnectionHandler implements Runnable {
 //		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
 		
 		// Send Response to client
-		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
+		StringBuffer sb = new StringBuffer();
+		// STATUS LINE
+		sb.append(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
 		
+		// HEADERS
 		for (Header h : httpGet.getResponseHeaders()) {
 			if (! HEADERS_TO_REMOVE.contains(h.getName())) {
-				clientSocket.getOutputStream().write(h.toString().getBytes());
+				sb.append(h.getName()).append(" ").append(h.getValue()).append("\r\n");
 			}
 		}
-		clientSocket.getOutputStream().write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
-		clientSocket.getOutputStream().flush();
-//		this.proxyToClientBw.write(httpGet.getResponseBodyAsString());
-//		this.proxyToClientBw.flush();
+		// End of headers
+		sb.append("\r\n");
+		// BODY
+		sb.append(httpGet.getResponseBodyAsString());
+		
+		int idx = 0;
+		int bufferLen = 4096;
+		String str = sb.toString();
+		while(idx < sb.length()) {
+			if (idx +bufferLen> sb.length()) {
+				this.proxyToClientBw.write(str.substring(idx));
+			} else {
+				this.proxyToClientBw.write(str.substring(idx, idx+bufferLen));
+			}
+			
+			idx += bufferLen;
+		}
+//		this.proxyToClientBw.write(sb.toString());
+		this.proxyToClientBw.flush();
+		this.proxyToClientBw.close();
 	}
 
 	public byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
