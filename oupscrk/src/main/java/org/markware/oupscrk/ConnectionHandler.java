@@ -61,7 +61,7 @@ public class ConnectionHandler implements Runnable {
 	public ConnectionHandler(Socket clientSocket) {
 		this.clientSocket = clientSocket;
 		try{
-			this.clientSocket.setSoTimeout(2000);
+			this.clientSocket.setSoTimeout(20000);
 			this.proxyToClientBr = this.clientSocket.getInputStream();
 			this.proxyToClientBw = this.clientSocket.getOutputStream();
 		} 
