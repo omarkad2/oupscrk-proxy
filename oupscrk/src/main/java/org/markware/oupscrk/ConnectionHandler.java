@@ -19,7 +19,6 @@ import java.util.zip.DataFormatException;
 
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 
 /**
@@ -37,12 +36,12 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Read data client sends to proxy
 	 */
-	private BufferedReader proxyToClientBr;
+	private InputStream proxyToClientBr;
 
 	/**
 	 * Send data from proxy to client
 	 */
-	private BufferedWriter proxyToClientBw;
+	private OutputStream proxyToClientBw;
 
 
 	/**
@@ -62,8 +61,8 @@ public class ConnectionHandler implements Runnable {
 		this.clientSocket = clientSocket;
 		try{
 			this.clientSocket.setSoTimeout(2000);
-			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
-			this.proxyToClientBw = new BufferedWriter(new OutputStreamWriter(this.clientSocket.getOutputStream()));
+			this.proxyToClientBr = this.clientSocket.getInputStream();
+			this.proxyToClientBw = this.clientSocket.getOutputStream();
 		} 
 		catch (IOException e) {
 			e.printStackTrace();
@@ -78,12 +77,12 @@ public class ConnectionHandler implements Runnable {
 		// Get Request from client
 		HttpRequestParser requestParsed = new HttpRequestParser();
 		try{
-			requestParsed.parseRequest(proxyToClientBr);
+			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 			System.out.println(requestParsed.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.out.println("Error parsing HTTP request from client" + e.getMessage());
-			return;
+			Thread.currentThread().interrupt();
 		}
 
 		if (requestParsed.getUrl() != null) {
@@ -102,7 +101,7 @@ public class ConnectionHandler implements Runnable {
 					String line = "HTTP/1.0 200 Connection established\r\n" +
 							"Proxy-Agent: ProxyServer/1.0\r\n" +
 							"\r\n";
-					proxyToClientBw.write(line);
+					proxyToClientBw.write(line.getBytes("UTF-8"));
 					proxyToClientBw.flush();
 
 					// Create a new thread to listen to client and transmit to server
@@ -148,7 +147,7 @@ public class ConnectionHandler implements Runnable {
 							"User-Agent: ProxyServer/1.0\n" +
 							"\r\n";
 					try{
-						proxyToClientBw.write(line);
+						proxyToClientBw.write(line.getBytes("UTF-8"));
 						proxyToClientBw.flush();
 					} catch (IOException ioe) {
 						ioe.printStackTrace();
@@ -174,12 +173,9 @@ public class ConnectionHandler implements Runnable {
 		int contentLength = requestParsed.getHeaderParam("Content-Length") != null ? 
 				Integer.parseInt(requestParsed.getHeaderParam("Content-Length").trim()) : 0;
 		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
-
+		
 		HttpClient httpClient = new HttpClient();
-		httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
-		
 		GetMethod httpGet = new GetMethod(url.toString());
-		
 		requestParsed.getHeaders().entrySet().forEach((entry)-> {
 			if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
 				httpGet.setRequestHeader(entry.getKey(), entry.getValue());
@@ -195,42 +191,35 @@ public class ConnectionHandler implements Runnable {
 		
 		System.out.println(httpGet.getResponseBody().length);
 		// Store plain response body
-		System.out.println(responsePlainBody);
+//		System.out.println(responsePlainBody);
 		
 		// Encode Response Body
 //		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
 		
 		// Send Response to client
-		StringBuffer sb = new StringBuffer();
-		// STATUS LINE
-		sb.append(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()));
+		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()).getBytes("UTF-8"));
 		
-		// HEADERS
 		for (Header h : httpGet.getResponseHeaders()) {
 			if (! HEADERS_TO_REMOVE.contains(h.getName())) {
-				sb.append(h.getName()).append(" ").append(h.getValue()).append("\r\n");
+				this.proxyToClientBw.write(new StringBuilder().append(h.getName()).append(": ").append(h.getValue()).append("\r\n").toString().getBytes("UTF-8"));
 			}
 		}
-		// End of headers
-		sb.append("\r\n");
-		// BODY
-		sb.append(httpGet.getResponseBodyAsString());
 		
-		int idx = 0;
-		int bufferLen = 4096;
-		String str = sb.toString();
-		while(idx < sb.length()) {
-			if (idx +bufferLen> sb.length()) {
-				this.proxyToClientBw.write(str.substring(idx));
-			} else {
-				this.proxyToClientBw.write(str.substring(idx, idx+bufferLen));
-			}
-			
-			idx += bufferLen;
-		}
-//		this.proxyToClientBw.write(sb.toString());
+		this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
+		this.proxyToClientBw.write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
 		this.proxyToClientBw.flush();
 		this.proxyToClientBw.close();
+		this.clientSocket.close();
+		
+		// TEST (works)
+		/*this.proxyToClientBw.write("HTTP/1.1 404 Not Found \r\n".getBytes("UTF-8"));
+		this.proxyToClientBw.write("Content-Type: text/HTML\r\n".getBytes("UTF-8"));
+		this.proxyToClientBw.write("Content-Length: 90\r\n".getBytes("UTF-8"));
+		this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
+		this.proxyToClientBw.write("<html><head><title>Page not found</title></head><body>The page was not found.</body></html>".getBytes("UTF-8"));
+		this.proxyToClientBw.flush();
+		this.proxyToClientBw.close();
+		this.clientSocket.close();*/
 	}
 
 	public byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
