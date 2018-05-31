@@ -19,6 +19,7 @@ import java.util.zip.DataFormatException;
 
 import org.apache.commons.httpclient.Header;
 import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.GetMethod;
 
 /**
@@ -175,6 +176,7 @@ public class ConnectionHandler implements Runnable {
 		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
 		
 		HttpClient httpClient = new HttpClient();
+		httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
 		GetMethod httpGet = new GetMethod(url.toString());
 		requestParsed.getHeaders().entrySet().forEach((entry)-> {
 			if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
@@ -183,13 +185,15 @@ public class ConnectionHandler implements Runnable {
 		});
 		
 		httpClient.executeMethod(httpGet);
+		InputStream responseStream = httpGet.getResponseBodyAsStream();
+		
 		String encodingAlg = httpGet.getResponseHeader("Content-Encoding") != null ? 
 				httpGet.getResponseHeader("Content-Encoding").getValue() : null;
 
 		// Decode Response Body
-		String responsePlainBody = decodeContentBody(httpGet.getResponseBody(), encodingAlg);
+//		String responsePlainBody = decodeContentBody(httpGet.getResponseBody(), encodingAlg);
 		
-		System.out.println(httpGet.getResponseBody().length);
+//		System.out.println(httpGet.getResponseBody().length);
 		// Store plain response body
 //		System.out.println(responsePlainBody);
 		
@@ -206,7 +210,26 @@ public class ConnectionHandler implements Runnable {
 		}
 		
 		this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
-		this.proxyToClientBw.write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
+//		this.proxyToClientBw.write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
+		byte[] buffer = new byte[4096];
+		int read = 0;
+		try {
+			do {
+				read = responseStream.read(buffer);
+				if (read > 0) {
+					System.out.println(read);
+					this.proxyToClientBw.write(buffer, 0, read);
+	//				if (responseStream.available() < 1) {
+	//					this.proxyToClientBw.flush();
+	//				}
+				}
+			} while (responseStream != null && read >= 0);
+		} catch (SocketTimeoutException e) {
+			System.out.println("Socket timeout exception " + e.getMessage());
+		} catch (IOException e) {
+			System.out.println("IO exception " + e.getMessage());
+		}
+		responseStream.close();
 		this.proxyToClientBw.flush();
 		this.proxyToClientBw.close();
 		this.clientSocket.close();

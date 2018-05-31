@@ -17,10 +17,12 @@ public class Interceptor {
 			port = Integer.parseInt(args[0]);
 		}
 		
+		System.out.println("Proxy listening on port : " + port);
+		
 		Interceptor interceptor = new Interceptor(port);
 		interceptor.listen();
 		
-		System.out.println("Proxy listening on port : " + port);
+		System.out.println("Proxy stopped listening on port : " + port);
 	}
 	
 	/**
