@@ -6,14 +6,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * 
@@ -53,7 +57,7 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Buffer Size
 	 */
-	private static final int BUFFER_SIZE = 4096;
+	private static final int BUFFER_SIZE = 32768;
 	
 	/**
 	 * Constructor
@@ -80,11 +84,10 @@ public class ConnectionHandler implements Runnable {
 		try{
 			HttpRequestParser requestParsed = new HttpRequestParser();
 			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
-			System.out.println(requestParsed.getUrl());
 			
 			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
 				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
-				// 2 - Forward request to client
+				// 2 - Forward request to Remote server
 				switch(requestParsed.getRequestType()) {
 					case "CONNECT":
 						doConnect(requestParsed);
@@ -109,14 +112,22 @@ public class ConnectionHandler implements Runnable {
 	private void doGet(HttpRequestParser requestParsed) {
 		try {
 			URL url = requestParsed.getUrl();
-			URLConnection conn = url.openConnection();
+			String protocolHttp = requestParsed.getScheme();
+			HttpURLConnection conn;
+			if ("https".equals(protocolHttp)) {
+				conn = (HttpsURLConnection)url.openConnection();
+			} else {
+				conn = (HttpURLConnection)url.openConnection();
+			}
 			conn.setDoInput(true);
 			//not doing HTTP posts
 			conn.setDoOutput(false);
-
+			conn.setRequestMethod("GET");
+			conn.setAllowUserInteraction(false);
+			conn.setInstanceFollowRedirects(false);
+			conn.connect();
 			// Get the response
 			InputStream serverToProxyStream = null;
-//			HttpURLConnection huc = (HttpURLConnection)conn;
 			if (conn.getContentLength() > 0) {
 				try {
 					serverToProxyStream = conn.getInputStream();
@@ -129,17 +140,18 @@ public class ConnectionHandler implements Runnable {
 
 			///////////////////////////////////
 			//begin send response to client
-			byte by[] = new byte[ BUFFER_SIZE ];
-			int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-			while ( index != -1 )
-			{
-				this.proxyToClientBw.write( by, 0, index );
-				index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-			}
-			this.proxyToClientBw.flush();
-
 			if (serverToProxyStream != null) {
-				serverToProxyStream.close();
+				byte by[] = new byte[ BUFFER_SIZE ];
+				int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
+				while ( index != -1 ) {
+					this.proxyToClientBw.write( by, 0, index );
+					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
+				}
+				this.proxyToClientBw.flush();
+
+				if (serverToProxyStream != null) {
+					serverToProxyStream.close();
+				}
 			}
 		} catch(IOException e) {
 			System.out.println("********* IO EXCEPTION **********: " + e);
@@ -181,7 +193,7 @@ public class ConnectionHandler implements Runnable {
 
 			// Listen to remote server and relay to client
 			try {
-				byte[] buffer = new byte[4096];
+				byte[] buffer = new byte[BUFFER_SIZE];
 				int read;
 				do {
 					read = proxyToServerSocket.getInputStream().read(buffer);
@@ -267,7 +279,7 @@ public class ConnectionHandler implements Runnable {
 		public void run(){
 			try {
 				// Read byte by byte from client and send directly to server
-				byte[] buffer = new byte[32768];
+				byte[] buffer = new byte[BUFFER_SIZE];
 				int read;
 				do {
 					read = proxyToClientIS.read(buffer);
