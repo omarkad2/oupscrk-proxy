@@ -4,17 +4,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Hashtable;
-import java.util.List;
 
 public class HttpRequestParser {
 
-	private static final List<String> HEADERS_TO_REMOVE = Collections.unmodifiableList(
-		    Arrays.asList("connection", "keep-alive", "proxy-authenticate", 
-			"proxy-authorization", "te", "trailers", "transfer-encoding", "upgrade"));
-	
     private String requestLine;
     private String command;
     private URL url;
@@ -86,7 +79,9 @@ public class HttpRequestParser {
 	        
 	        // Get the Request type
 	 		this.command = requestLineParts[0];
-	
+	 		if (this.command == null || this.command.isEmpty()) {
+	 			throw new IOException("Command http Null");
+	 		}
 	 		String urlString = requestLineParts[1];
 	 		
 	 		this.httpVersion = requestLineParts[2];
@@ -110,20 +105,16 @@ public class HttpRequestParser {
 			this.url = new URL(pieces[0].startsWith("https://") 
 								|| pieces[0].startsWith("http://") ? pieces[0] : this.scheme + "://" + pieces[0]);
 			
-			this.hostname = this.url.getHost();
-			this.path = this.url.getPath();
+			if (this.url == null) {
+				throw new IOException("Url Null");
+			} else {
+				this.hostname = this.url.getHost();
+				this.path = this.url.getPath();
+			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
     }
-
-    public Hashtable<String, String> getHeaders() {
-		return headers;
-	}
-
-	public void setHeaders(Hashtable<String, String> headers) {
-		this.headers = headers;
-	}
 
 	private void appendHeaderParameter(String header) {
         int idx = header.indexOf(":");
@@ -174,5 +165,13 @@ public class HttpRequestParser {
 
 	public String getScheme() {
 		return scheme;
+	}
+	
+	public Hashtable<String, String> getHeaders() {
+		return headers;
+	}
+
+	public void setHeaders(Hashtable<String, String> headers) {
+		this.headers = headers;
 	}
 }

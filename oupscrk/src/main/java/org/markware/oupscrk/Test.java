@@ -54,6 +54,7 @@ class ClientHandler extends Thread {
             String inputLine, outputLine;
             int cnt = 0;
             String urlToCall = "";
+            String methodHTTP = "";
             ///////////////////////////////////
             //begin get request from client
             while ((inputLine = in.readLine()) != null) {
@@ -66,9 +67,10 @@ class ClientHandler extends Thread {
                 //parse the first line of the request to find the url
                 if (cnt == 0) {
                     String[] tokens = inputLine.split(" ");
+                    methodHTTP = tokens[0];
                     urlToCall = tokens[1];
                     //can redirect this to output log
-                    System.out.println("Request for : " + urlToCall);
+                    System.out.println("Request " + methodHTTP + " for : " + urlToCall);
                 }
 
                 cnt++;
@@ -80,7 +82,7 @@ class ClientHandler extends Thread {
             BufferedReader rd = null;
             try {
                 //System.out.println("sending request
-		//to real server for url: "
+            	//to real server for url: "
                 //        + urlToCall);
                 ///////////////////////////////////
                 //begin send request to server, get response from server

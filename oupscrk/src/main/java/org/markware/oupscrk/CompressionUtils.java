@@ -14,17 +14,17 @@ import java.util.zip.Inflater;
 
 public class CompressionUtils {  
 
-	public static byte[] gzipCompress(byte[] data) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length);
+	private static byte[] gzipCompress(String data) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length());
 		GZIPOutputStream gzip = new GZIPOutputStream(bos);
-		gzip.write(data);
+		gzip.write(data.getBytes("UTF-8"));
 		gzip.close();
 		byte[] compressed = bos.toByteArray();
 		bos.close();
 		return compressed;
 	}
 	
-	public static String gzipDecompress(byte[] compressed) throws IOException {
+	private static String gzipDecompress(byte[] compressed) throws IOException {
 		ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
 		GZIPInputStream gis = new GZIPInputStream(bis);
 		BufferedReader br = new BufferedReader(new InputStreamReader(gis, "UTF-8"));
@@ -39,10 +39,10 @@ public class CompressionUtils {
 		return sb.toString();
 	}
 	
-	public static byte[] zlibCompress(byte[] data) throws IOException {  
+	private static byte[] zlibCompress(String data) throws IOException {  
 		Deflater deflater = new Deflater();  
-		deflater.setInput(data);  
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);   
+		deflater.setInput(data.getBytes("UTF-8"));  
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length());   
 		deflater.finish();  
 		byte[] buffer = new byte[1024];   
 		while (!deflater.finished()) {  
@@ -55,7 +55,7 @@ public class CompressionUtils {
 
 	}  
 
-	public static byte[] zlibDecompress(byte[] data) throws IOException, DataFormatException {  
+	private static String zlibDecompress(byte[] data) throws IOException, DataFormatException {  
 		Inflater inflater = new Inflater();   
 		inflater.setInput(data);  
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);  
@@ -65,8 +65,36 @@ public class CompressionUtils {
 			outputStream.write(buffer, 0, count);  
 		}  
 		outputStream.close();  
-		byte[] output = outputStream.toByteArray();  
-		return output;  
-
+		return outputStream.toString("UTF-8"); 
 	}  
+	
+	public static byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
+		byte[] result = plainBody.getBytes("UTF-8");
+		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
+			return result;
+		}
+		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
+			result = CompressionUtils.gzipCompress(plainBody);
+		} else if ("deflate".equals(encodingAlg)) {
+			result = CompressionUtils.zlibCompress(plainBody);
+		} else {
+			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
+		}
+		return result;
+	}
+	
+	public static String decodeContentBody(byte[] encodedBody, String encodingAlg) throws IOException, DataFormatException {
+		String result = new String(encodedBody, StandardCharsets.UTF_8);
+		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
+			return result;
+		}
+		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
+			result = CompressionUtils.gzipDecompress(encodedBody);
+		} else if ("deflate".equals(encodingAlg)) {
+			result = CompressionUtils.zlibDecompress(encodedBody);
+		} else {
+			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
+		}
+		return result;
+	}
 }
