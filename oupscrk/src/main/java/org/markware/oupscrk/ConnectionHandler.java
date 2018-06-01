@@ -6,16 +6,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -113,19 +114,36 @@ public class ConnectionHandler implements Runnable {
 		try {
 			URL url = requestParsed.getUrl();
 			String protocolHttp = requestParsed.getScheme();
+			
+			// HTTP Connection
 			HttpURLConnection conn;
 			if ("https".equals(protocolHttp)) {
 				conn = (HttpsURLConnection)url.openConnection();
 			} else {
 				conn = (HttpURLConnection)url.openConnection();
 			}
+			
+			// Set Request Method
+			conn.setRequestMethod(requestParsed.getRequestType());
+			
+			// Set headers (filtering out proxy headers)
+			setRequestHeaders(requestParsed.getHeaders(), conn);
+			
+			// Send body if there is one
+			String requestBody = requestParsed.getMessageBody();
+			if (requestBody != null && !requestBody.isEmpty()) {
+				conn.setDoOutput(true);
+				OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");    
+	            osw.write(requestBody);
+	            osw.flush();
+	            osw.close(); 
+			}
+			
 			conn.setDoInput(true);
-			//not doing HTTP posts
-			conn.setDoOutput(false);
-			conn.setRequestMethod("GET");
 			conn.setAllowUserInteraction(false);
 			conn.setInstanceFollowRedirects(false);
 			conn.connect();
+			
 			// Get the response
 			InputStream serverToProxyStream = null;
 			if (conn.getContentLength() > 0) {
@@ -158,9 +176,19 @@ public class ConnectionHandler implements Runnable {
 		} finally {
 			this.shutdown();
 		}
-		
 	}
 	
+	private void setRequestHeaders(Hashtable<String, String> headersToSet, HttpURLConnection connection) {
+		// Set headers
+		if (headersToSet != null) {
+			headersToSet.entrySet().forEach((entry) -> {
+				if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
+					connection.setRequestProperty(entry.getKey(), entry.getValue());
+				}
+			});
+		}
+		
+	}
 	/**
 	 * Do connect
 	 * @param requestParsed Client HTTP request

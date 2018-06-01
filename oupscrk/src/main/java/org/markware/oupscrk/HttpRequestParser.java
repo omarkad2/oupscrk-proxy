@@ -43,13 +43,8 @@ public class HttpRequestParser {
     public void setHeaders(BufferedReader reader) throws IOException {
 		String header = reader.readLine();
     	while (header.length() > 0) {
-    		if ("\r\n".equals(header.trim())) {
-    			// header ends
-    			return;
-    		} else {
-    			appendHeaderParameter(header);
-    			header = reader.readLine();
-    		}
+			appendHeaderParameter(header);
+			header = reader.readLine();
     	}
     }
     
