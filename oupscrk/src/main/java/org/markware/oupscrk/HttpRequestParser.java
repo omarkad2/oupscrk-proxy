@@ -50,7 +50,7 @@ public class HttpRequestParser {
     
     public void setBody(BufferedReader reader) throws IOException {
 		String bodyLine = reader.readLine();
-    	while (bodyLine != null) {
+    	while (bodyLine.length() > 0) {
     		appendMessageBody(bodyLine);
     		if (reader.ready())
     			bodyLine = reader.readLine();

@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
@@ -87,7 +88,7 @@ public class ConnectionHandler implements Runnable {
 			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 			
 			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
-				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
+//				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
 				// 2 - Forward request to Remote server
 				switch(requestParsed.getRequestType()) {
 					case "CONNECT":
@@ -102,13 +103,11 @@ public class ConnectionHandler implements Runnable {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println("Shutting down" + e.getMessage());
+			System.out.println("Shutting down " + e.getMessage());
 		} finally {
 			this.shutdown();
 		}
-
 	}
-
 	
 	private void doGet(HttpRequestParser requestParsed) {
 		try {
@@ -146,6 +145,7 @@ public class ConnectionHandler implements Runnable {
 			
 			// Get the response
 			InputStream serverToProxyStream = null;
+			StringBuffer responseBuffer = new StringBuffer();
 			if (conn.getContentLength() > 0) {
 				try {
 					serverToProxyStream = conn.getInputStream();
@@ -163,6 +163,7 @@ public class ConnectionHandler implements Runnable {
 				int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
 				while ( index != -1 ) {
 					this.proxyToClientBw.write( by, 0, index );
+					responseBuffer.append(new String(by, StandardCharsets.UTF_8));
 					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
 				}
 				this.proxyToClientBw.flush();
@@ -171,6 +172,7 @@ public class ConnectionHandler implements Runnable {
 					serverToProxyStream.close();
 				}
 			}
+			System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
 		} catch(IOException e) {
 			System.out.println("********* IO EXCEPTION **********: " + e);
 		} finally {
