@@ -1,6 +1,7 @@
 package org.markware.oupscrk;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,12 +13,12 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.zip.DataFormatException;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -185,21 +186,36 @@ public class ConnectionHandler implements Runnable {
 				StringBuffer responseBuffer = new StringBuffer();
 				byte by[] = new byte[ BUFFER_SIZE ];
 				int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
+				String decodedBody = CompressionUtils.decodeContentBody(by, contentEncoding);
 				while ( index != -1 ) {
-					this.proxyToClientBw.write( by, 0, index );
-					responseBuffer.append(new String(by, StandardCharsets.UTF_8));
+					responseBuffer.append(decodedBody);
 					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
+					decodedBody = CompressionUtils.decodeContentBody(by, contentEncoding);
+				}
+
+				// Modify response ...
+				String responsePlain = responseBuffer.toString();
+				
+				// encode response and send it to client
+				byte[] bodyChunk = new byte [BUFFER_SIZE];
+				int read = new ByteArrayInputStream(
+									CompressionUtils.encodeContentBody(responsePlain, contentEncoding))
+										.read(bodyChunk, 0, BUFFER_SIZE);
+				while ( read != -1 ) {
+					this.proxyToClientBw.write(bodyChunk, 0, read);
+					read = serverToProxyStream.read(bodyChunk, 0, BUFFER_SIZE );
 				}
 				this.proxyToClientBw.flush();
-
+				
+				// Close Remote Server -> Proxy Stream
 				if (serverToProxyStream != null) {
 					serverToProxyStream.close();
 				}
 				
-				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
+//				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
 			}
 			
-		} catch(IOException e) {
+		} catch(IOException | DataFormatException e) {
 			System.out.println("********* IO EXCEPTION **********: " + e);
 		} finally {
 			this.shutdown();
