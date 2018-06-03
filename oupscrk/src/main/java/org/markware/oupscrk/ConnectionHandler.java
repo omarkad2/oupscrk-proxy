@@ -2,6 +2,7 @@ package org.markware.oupscrk;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,9 +14,9 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.zip.DataFormatException;
@@ -127,83 +128,86 @@ public class ConnectionHandler implements Runnable {
 			conn.setRequestMethod(requestParsed.getRequestType());
 			
 			// Set headers (filtering out proxy headers)
-			setRequestHeaders(requestParsed.getHeaders(), conn);
+			if (requestParsed.getHeaders() != null) {
+				requestParsed.getHeaders().entrySet().forEach((entry) -> {
+					if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
+						conn.setRequestProperty(entry.getKey(), entry.getValue());
+					}
+				});
+			}
 			
 			// Send body if there is one
 			String requestBody = requestParsed.getMessageBody();
 			if (requestBody != null && !requestBody.isEmpty()) {
 				conn.setDoOutput(true);
-				OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), "UTF-8");    
+				OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);    
 	            osw.write(requestBody);
 	            osw.flush();
 	            osw.close(); 
 			}
 			
+			conn.setReadTimeout(10000);
+			conn.setConnectTimeout(10000);
+			
 			conn.setDoInput(true);
 			conn.setAllowUserInteraction(false);
-			conn.setInstanceFollowRedirects(false);
+//			conn.setInstanceFollowRedirects(false);
 			conn.connect();
 			
-			// Get the response
+			// Get the response stream
 			InputStream serverToProxyStream = null;
-			
-			if (conn.getContentLength() > 0) {
-				try {
-					serverToProxyStream = conn.getInputStream();
-				} catch (IOException ioe) {
-					System.out.println("********* IO EXCEPTION **********: " + ioe);
-				}
+			int responseCode = conn.getResponseCode();
+			if (responseCode >= 400) {
+				serverToProxyStream = conn.getErrorStream();
+			} else {
+				serverToProxyStream = conn.getInputStream();
 			}
-			//end send request to server, get response from server
-			///////////////////////////////////
 
-			///////////////////////////////////
-			//begin send response to client
+			// Send response to client
 			if (serverToProxyStream != null) {
 				
 				// send statusLine
 				String statusLine = conn.getHeaderField(0);
-				this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes("UTF-8"));
+				this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
 				
 				// send headers (filtered)
 				for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
-					if (!HEADERS_TO_REMOVE.contains(header.getKey())) {
+					if (header.getKey() != null && !HEADERS_TO_REMOVE.contains(header.getKey())) {
 						this.proxyToClientBw.write(
 								  new StringBuilder().append(header.getKey())
 													 .append(": ")
 													 .append(String.join(", ", header.getValue()))
 													 .append("\r\n")
 													 .toString()
-													 .getBytes("UTF-8"));
+													 .getBytes(StandardCharsets.UTF_8));
 					}
 				}
 
 				// end headers
-				this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
+				this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
 				
 				// send body
 				String contentEncoding = conn.getContentEncoding();
-				StringBuffer responseBuffer = new StringBuffer();
+				ByteArrayOutputStream responseBuffer = new ByteArrayOutputStream();
 				byte by[] = new byte[ BUFFER_SIZE ];
-				int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-				String decodedBody = CompressionUtils.decodeContentBody(by, contentEncoding);
+				int index = serverToProxyStream.read(by, 0, BUFFER_SIZE);
 				while ( index != -1 ) {
-					responseBuffer.append(decodedBody);
+					responseBuffer.write(by, 0, index);
 					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-					decodedBody = CompressionUtils.decodeContentBody(by, contentEncoding);
 				}
 
-				// Modify response ...
-				String responsePlain = responseBuffer.toString();
+				// Decode body, Modify response ...
+				String responsePlain = 
+						CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
 				
 				// encode response and send it to client
+				ByteArrayInputStream streamToSend = new ByteArrayInputStream(
+						CompressionUtils.encodeContentBody(responsePlain, contentEncoding));
 				byte[] bodyChunk = new byte [BUFFER_SIZE];
-				int read = new ByteArrayInputStream(
-									CompressionUtils.encodeContentBody(responsePlain, contentEncoding))
-										.read(bodyChunk, 0, BUFFER_SIZE);
+				int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
 				while ( read != -1 ) {
 					this.proxyToClientBw.write(bodyChunk, 0, read);
-					read = serverToProxyStream.read(bodyChunk, 0, BUFFER_SIZE );
+					read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
 				}
 				this.proxyToClientBw.flush();
 				
@@ -212,7 +216,6 @@ public class ConnectionHandler implements Runnable {
 					serverToProxyStream.close();
 				}
 				
-//				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
 			}
 			
 		} catch(IOException | DataFormatException e) {
@@ -222,17 +225,6 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
-	private void setRequestHeaders(Hashtable<String, String> headersToSet, HttpURLConnection connection) {
-		// Set headers
-		if (headersToSet != null) {
-			headersToSet.entrySet().forEach((entry) -> {
-				if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
-					connection.setRequestProperty(entry.getKey(), entry.getValue());
-				}
-			});
-		}
-		
-	}
 	/**
 	 * Do connect
 	 * @param requestParsed Client HTTP request
@@ -252,7 +244,7 @@ public class ConnectionHandler implements Runnable {
 			String line = "HTTP/1.0 200 Connection established\r\n" +
 					"Proxy-Agent: ProxyServer/1.0\r\n" +
 					"\r\n";
-			this.proxyToClientBw.write(line.getBytes("UTF-8"));
+			this.proxyToClientBw.write(line.getBytes(StandardCharsets.UTF_8));
 			this.proxyToClientBw.flush();
 
 			// Create a new thread to listen to client and transmit to server
@@ -293,7 +285,7 @@ public class ConnectionHandler implements Runnable {
 					"User-Agent: ProxyServer/1.0\n" +
 					"\r\n";
 			try{
-				this.proxyToClientBw.write(line.getBytes("UTF-8"));
+				this.proxyToClientBw.write(line.getBytes(StandardCharsets.UTF_8));
 				this.proxyToClientBw.flush();
 			} catch (IOException ioe) {
 				ioe.printStackTrace();
@@ -373,80 +365,4 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
-//	private void doGet1(HttpRequestParser requestParsed) throws IOException, DataFormatException {
-//		URL url = requestParsed.getUrl();
-//		String httpMethod = requestParsed.getRequestType();
-//		int contentLength = requestParsed.getHeaderParam("Content-Length") != null ? 
-//				Integer.parseInt(requestParsed.getHeaderParam("Content-Length").trim()) : 0;
-//		String requestBody = contentLength > 0 ? requestParsed.getMessageBody() : null;
-//		
-//		HttpClient httpClient = new HttpClient();
-//		httpClient.getParams().setCookiePolicy(CookiePolicy.BROWSER_COMPATIBILITY);
-//		GetMethod httpGet = new GetMethod(url.toString());
-//		requestParsed.getHeaders().entrySet().forEach((entry)-> {
-//			if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
-//				httpGet.setRequestHeader(entry.getKey(), entry.getValue());
-//			}
-//		});
-//		
-//		httpClient.executeMethod(httpGet);
-//		InputStream responseStream = httpGet.getResponseBodyAsStream();
-//		
-//		String encodingAlg = httpGet.getResponseHeader("Content-Encoding") != null ? 
-//				httpGet.getResponseHeader("Content-Encoding").getValue() : null;
-//
-//		// Decode Response Body
-////		String responsePlainBody = decodeContentBody(httpGet.getResponseBody(), encodingAlg);
-//		
-////		System.out.println(httpGet.getResponseBody().length);
-//		// Store plain response body
-////		System.out.println(responsePlainBody);
-//		
-//		// Encode Response Body
-////		String responseBody = encodeContentBody(responsePlainBody, encodingAlg);
-//		
-//		// Send Response to client
-//		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpGet.getStatusLine().getHttpVersion(), httpGet.getStatusLine().getStatusCode(), httpGet.getStatusLine().getReasonPhrase()).getBytes("UTF-8"));
-//		
-//		for (Header h : httpGet.getResponseHeaders()) {
-//			if (! HEADERS_TO_REMOVE.contains(h.getName())) {
-//				this.proxyToClientBw.write(new StringBuilder().append(h.getName()).append(": ").append(h.getValue()).append("\r\n").toString().getBytes("UTF-8"));
-//			}
-//		}
-//		
-//		this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
-////		this.proxyToClientBw.write(httpGet.getResponseBody(), 0, httpGet.getResponseBody().length);
-//		byte[] buffer = new byte[4096];
-//		int read = 0;
-//		try {
-//			do {
-//				read = responseStream.read(buffer);
-//				if (read > 0) {
-//					System.out.println(read);
-//					this.proxyToClientBw.write(buffer, 0, read);
-//	//				if (responseStream.available() < 1) {
-//	//					this.proxyToClientBw.flush();
-//	//				}
-//				}
-//			} while (responseStream != null && read >= 0);
-//		} catch (SocketTimeoutException e) {
-//			System.out.println("Socket timeout exception " + e.getMessage());
-//		} catch (IOException e) {
-//			System.out.println("IO exception " + e.getMessage());
-//		}
-//		responseStream.close();
-//		this.proxyToClientBw.flush();
-//		this.proxyToClientBw.close();
-//		this.clientSocket.close();
-//		
-//		// TEST (works)
-//		/*this.proxyToClientBw.write("HTTP/1.1 404 Not Found \r\n".getBytes("UTF-8"));
-//		this.proxyToClientBw.write("Content-Type: text/HTML\r\n".getBytes("UTF-8"));
-//		this.proxyToClientBw.write("Content-Length: 90\r\n".getBytes("UTF-8"));
-//		this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
-//		this.proxyToClientBw.write("<html><head><title>Page not found</title></head><body>The page was not found.</body></html>".getBytes("UTF-8"));
-//		this.proxyToClientBw.flush();
-//		this.proxyToClientBw.close();
-//		this.clientSocket.close();*/
-//	}
 }
