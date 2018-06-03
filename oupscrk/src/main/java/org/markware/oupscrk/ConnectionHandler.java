@@ -17,7 +17,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
+import java.util.Map.Entry;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -145,7 +145,7 @@ public class ConnectionHandler implements Runnable {
 			
 			// Get the response
 			InputStream serverToProxyStream = null;
-			StringBuffer responseBuffer = new StringBuffer();
+			
 			if (conn.getContentLength() > 0) {
 				try {
 					serverToProxyStream = conn.getInputStream();
@@ -159,6 +159,30 @@ public class ConnectionHandler implements Runnable {
 			///////////////////////////////////
 			//begin send response to client
 			if (serverToProxyStream != null) {
+				
+				// send statusLine
+				String statusLine = conn.getHeaderField(0);
+				this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes("UTF-8"));
+				
+				// send headers (filtered)
+				for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
+					if (!HEADERS_TO_REMOVE.contains(header.getKey())) {
+						this.proxyToClientBw.write(
+								  new StringBuilder().append(header.getKey())
+													 .append(": ")
+													 .append(String.join(", ", header.getValue()))
+													 .append("\r\n")
+													 .toString()
+													 .getBytes("UTF-8"));
+					}
+				}
+
+				// end headers
+				this.proxyToClientBw.write("\r\n".getBytes("UTF-8"));
+				
+				// send body
+				String contentEncoding = conn.getContentEncoding();
+				StringBuffer responseBuffer = new StringBuffer();
 				byte by[] = new byte[ BUFFER_SIZE ];
 				int index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
 				while ( index != -1 ) {
@@ -171,8 +195,10 @@ public class ConnectionHandler implements Runnable {
 				if (serverToProxyStream != null) {
 					serverToProxyStream.close();
 				}
+				
+				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
 			}
-			System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl() + " => " + responseBuffer.toString());
+			
 		} catch(IOException e) {
 			System.out.println("********* IO EXCEPTION **********: " + e);
 		} finally {
@@ -322,7 +348,7 @@ public class ConnectionHandler implements Runnable {
 				} while (read >= 0);
 			}
 			catch (SocketTimeoutException ste) {
-				// TODO: handle exception
+				
 			}
 			catch (IOException e) {
 				System.out.println("Proxy to client HTTPS read timed out");
