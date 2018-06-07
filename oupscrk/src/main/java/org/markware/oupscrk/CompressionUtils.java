@@ -1,10 +1,8 @@
 package org.markware.oupscrk;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -27,16 +25,17 @@ public class CompressionUtils {
 	private static String gzipDecompress(byte[] compressed) throws IOException {
 		ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
 		GZIPInputStream gis = new GZIPInputStream(bis);
-		BufferedReader br = new BufferedReader(new InputStreamReader(gis, "UTF-8"));
-		StringBuilder sb = new StringBuilder();
-		String line;
-		while((line = br.readLine()) != null) {
-			sb.append(line);
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		
+		byte[] buffer = new byte[1024];
+		int read;
+		while((read = gis.read(buffer)) > 0) {
+			os.write(buffer, 0, read);
 		}
-		br.close();
+		os.close();
 		gis.close();
 		bis.close();
-		return sb.toString();
+		return os.toString();
 	}
 	
 	private static byte[] zlibCompress(String data) throws IOException {  

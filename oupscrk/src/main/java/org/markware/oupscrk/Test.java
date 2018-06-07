@@ -1,6 +1,7 @@
 package org.markware.oupscrk;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.zip.DataFormatException;
 
 public class Test {
@@ -18,18 +19,18 @@ public class Test {
     			"<script src=\"/javascripts/jquery.js\"></script><script src=\"/javascripts/bootstrap.min.js\"></script><script src=\"/plugins/flexslider/jquery.flexslider-min.js\"></script><script src=\"/plugins/jPanelMenu/jquery.jpanelmenu.min.js\"></script><script src=\"/plugins/jRespond/js/jRespond.js\"></script><script src=\"/plugins/onePageNav/jquery.scrollTo.js\"></script><script src=\"/plugins/onePageNav/jquery.nav.js\"></script><script src=\"/javascripts/script.js\"></script></body></html>";
     
     	byte[] encodedBody = CompressionUtils.encodeContentBody(test, "gzip");
-    	System.out.println(encodedBody);
+    	System.out.println(Arrays.toString(encodedBody));
     	
-    	System.out.println();
-    	System.out.println();
-    	System.out.println();
     	System.out.println();
     	System.out.println();
     	
     	String decodedBody = CompressionUtils.decodeContentBody(encodedBody, "gzip");
     	System.out.println(decodedBody);
     	
-    	System.out.println(test.equals(decodedBody));
-    
+    	System.out.println();
+    	System.out.println();
+    	
+    	System.out.println(Arrays.toString(CompressionUtils.encodeContentBody(decodedBody, "gzip")));
     }
+    
 }
