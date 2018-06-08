@@ -53,7 +53,7 @@ public class Interceptor {
 			file = new File(classLoader.getResource(CA_FOLDER + "ca.key").getFile());
 			this.caKey = new String(Files.readAllBytes(file.toPath()));
 			/* CA CERT */
-			file = new File(classLoader.getResource(CA_FOLDER + "ca.cert").getFile());
+			file = new File(classLoader.getResource(CA_FOLDER + "ca.crt").getFile());
 			this.caCert = new String(Files.readAllBytes(file.toPath()));
 			/* CERT KEY */
 			file = new File(classLoader.getResource(CA_FOLDER + "cert.key").getFile());
