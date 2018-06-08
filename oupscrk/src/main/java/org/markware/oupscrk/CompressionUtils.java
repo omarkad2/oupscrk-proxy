@@ -3,7 +3,6 @@ package org.markware.oupscrk;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.GZIPInputStream;
@@ -12,17 +11,17 @@ import java.util.zip.Inflater;
 
 public class CompressionUtils {  
 
-	private static byte[] gzipCompress(String data) throws IOException {
-		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length());
+	public static byte[] gzipCompress(byte[] data) throws IOException {
+		ByteArrayOutputStream bos = new ByteArrayOutputStream(data.length);
 		GZIPOutputStream gzip = new GZIPOutputStream(bos);
-		gzip.write(data.getBytes("UTF-8"));
+		gzip.write(data);
 		gzip.close();
 		byte[] compressed = bos.toByteArray();
 		bos.close();
 		return compressed;
 	}
 	
-	private static String gzipDecompress(byte[] compressed) throws IOException {
+	public static byte[] gzipDecompress(byte[] compressed) throws IOException {
 		ByteArrayInputStream bis = new ByteArrayInputStream(compressed);
 		GZIPInputStream gis = new GZIPInputStream(bis);
 		ByteArrayOutputStream os = new ByteArrayOutputStream();
@@ -35,13 +34,13 @@ public class CompressionUtils {
 		os.close();
 		gis.close();
 		bis.close();
-		return os.toString();
+		return os.toByteArray();
 	}
 	
-	private static byte[] zlibCompress(String data) throws IOException {  
+	private static byte[] zlibCompress(byte[] data) throws IOException {  
 		Deflater deflater = new Deflater();  
-		deflater.setInput(data.getBytes("UTF-8"));  
-		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length());   
+		deflater.setInput(data);  
+		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);   
 		deflater.finish();  
 		byte[] buffer = new byte[1024];   
 		while (!deflater.finished()) {  
@@ -54,7 +53,7 @@ public class CompressionUtils {
 
 	}  
 
-	private static String zlibDecompress(byte[] data) throws IOException, DataFormatException {  
+	private static byte[] zlibDecompress(byte[] data) throws IOException, DataFormatException {  
 		Inflater inflater = new Inflater();   
 		inflater.setInput(data);  
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length);  
@@ -64,11 +63,11 @@ public class CompressionUtils {
 			outputStream.write(buffer, 0, count);  
 		}  
 		outputStream.close();  
-		return outputStream.toString("UTF-8"); 
+		return outputStream.toByteArray(); 
 	}  
 	
-	public static byte[] encodeContentBody(String plainBody, String encodingAlg) throws IOException {
-		byte[] result = plainBody.getBytes("UTF-8");
+	public static byte[] encodeContentBody(byte[] plainBody, String encodingAlg) throws IOException {
+		byte[] result = plainBody;
 		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
 			return result;
 		}
@@ -82,8 +81,8 @@ public class CompressionUtils {
 		return result;
 	}
 	
-	public static String decodeContentBody(byte[] encodedBody, String encodingAlg) throws IOException, DataFormatException {
-		String result = new String(encodedBody, StandardCharsets.UTF_8);
+	public static byte[] decodeContentBody(byte[] encodedBody, String encodingAlg) throws IOException, DataFormatException {
+		byte[] result = encodedBody;
 		if (encodingAlg == null || encodingAlg.isEmpty() || encodingAlg == "identity") {
 			return result;
 		}

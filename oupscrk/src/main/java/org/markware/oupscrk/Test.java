@@ -18,18 +18,16 @@ public class Test {
     			"</script>\r\n" + 
     			"<script src=\"/javascripts/jquery.js\"></script><script src=\"/javascripts/bootstrap.min.js\"></script><script src=\"/plugins/flexslider/jquery.flexslider-min.js\"></script><script src=\"/plugins/jPanelMenu/jquery.jpanelmenu.min.js\"></script><script src=\"/plugins/jRespond/js/jRespond.js\"></script><script src=\"/plugins/onePageNav/jquery.scrollTo.js\"></script><script src=\"/plugins/onePageNav/jquery.nav.js\"></script><script src=\"/javascripts/script.js\"></script></body></html>";
     
-    	byte[] encodedBody = CompressionUtils.encodeContentBody(test, "gzip");
+    	byte[] encodedBody = CompressionUtils.encodeContentBody(test.getBytes("UTF-8"), "gzip");
+    	
+    	byte[] decodedBody = CompressionUtils.decodeContentBody(encodedBody, "gzip");
+    	System.out.println(Arrays.toString(test.getBytes("UTF-8")));
+    	System.out.println(Arrays.toString(decodedBody));
+    	
+    	System.out.println();
+    	System.out.println();
+    	
     	System.out.println(Arrays.toString(encodedBody));
-    	
-    	System.out.println();
-    	System.out.println();
-    	
-    	String decodedBody = CompressionUtils.decodeContentBody(encodedBody, "gzip");
-    	System.out.println(decodedBody);
-    	
-    	System.out.println();
-    	System.out.println();
-    	
     	System.out.println(Arrays.toString(CompressionUtils.encodeContentBody(decodedBody, "gzip")));
     }
     

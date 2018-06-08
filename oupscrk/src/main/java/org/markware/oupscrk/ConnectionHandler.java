@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -15,6 +16,7 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -22,6 +24,8 @@ import java.util.Map.Entry;
 import java.util.zip.DataFormatException;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 /**
  * 
@@ -34,7 +38,27 @@ public class ConnectionHandler implements Runnable {
 	 * Client socket
 	 */
 	private Socket clientSocket;
-
+	
+	/**
+	 * CA KEY
+	 */
+	private String caKey;
+	
+	/**
+	 * CA CERT
+	 */
+	private String caCert;
+	
+	/**
+	 * CERT KEY
+	 */
+	private String certKey;
+	
+	/**
+	 * CERTS FOLDER
+	 */
+	private Path certsFolder;
+	
 	/**
 	 * Read data client sends to proxy
 	 */
@@ -67,8 +91,12 @@ public class ConnectionHandler implements Runnable {
 	 * Constructor
 	 * @param clientSocket
 	 */
-	public ConnectionHandler(Socket clientSocket) {
+	public ConnectionHandler(Socket clientSocket, String caKey, String caCert, String certKey, Path certsFolder) {
 		this.clientSocket = clientSocket;
+		this.caKey = caKey;
+		this.caCert = caCert;
+		this.certKey = certKey;
+		this.certsFolder = certsFolder;
 		try{
 			this.clientSocket.setSoTimeout(2000);
 			this.proxyToClientBr = this.clientSocket.getInputStream();
@@ -151,7 +179,6 @@ public class ConnectionHandler implements Runnable {
 			
 			conn.setDoInput(true);
 			conn.setAllowUserInteraction(false);
-//			conn.setInstanceFollowRedirects(false);
 			conn.connect();
 			
 			// Get the response stream
@@ -195,10 +222,12 @@ public class ConnectionHandler implements Runnable {
 					responseBuffer.write(by, 0, index);
 					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
 				}
-
+				responseBuffer.flush();
+				
+				System.out.println(responseBuffer.size());
 				// Decode body, Modify response ...
-				String responsePlain = 
-						CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
+				byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
+//				String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
 				
 				// encode response and send it to client
 				ByteArrayInputStream streamToSend = new ByteArrayInputStream(
@@ -228,9 +257,45 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Do connect
 	 * @param requestParsed Client HTTP request
+	 * @throws IOException 
 	 */
-	private void doConnect(HttpRequestParser requestParsed) {
+	private void doConnect(HttpRequestParser requestParsed) throws IOException {
+		if (this.caKey != null && !this.caKey.isEmpty() && this.caCert != null && !this.caCert.isEmpty() && this.certKey != null 
+				&& !this.certKey.isEmpty() && this.certsFolder != null) {
+			connectionIntercept(requestParsed);
+		} else {
+			connectionRelay(requestParsed);
+		}
+	}
+
+	private void connectionIntercept(HttpRequestParser requestParsed) throws IOException {
+		String hostname = requestParsed.getUrl().getHost();
+		String certPath = String.format("%s/%s.crt", this.certsFolder.toAbsolutePath().toString(), hostname);
+		
+		// This chunk should be Thread safe !
+		if (new File(certPath).exists()) {
+			
+		}
+		
+		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+		
+		// wrap client socket
+		SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(
+											this.clientSocket, 
+											this.clientSocket.getInetAddress().getHostAddress(), 
+											this.clientSocket.getPort(), 
+							                true);
+		sslSocket.setUseClientMode(false);
+		sslSocket.startHandshake();
+		this.clientSocket = sslSocket;
+		this.proxyToClientBr = this.clientSocket.getInputStream();
+		this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
+	}
+
+	private void connectionRelay(HttpRequestParser requestParsed) {
 		try {
+			System.out.println("Relaying : " + requestParsed.getUrl());
 			// Client and Remote will both start sending data to proxy at this point
 			// Proxy needs to asynchronously read data from each party and send it to the other party
 
@@ -298,7 +363,7 @@ public class ConnectionHandler implements Runnable {
 			this.shutdown();
 		}
 	}
-
+	
 	/**
 	 * Shutdown Connection
 	 */
