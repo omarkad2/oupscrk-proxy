@@ -8,23 +8,52 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class Interceptor {
+/**
+ * Main thread
+ * @author citestra
+ *
+ */
+public class Intercepter {
 
+	/**
+	 * CA resources
+	 */
 	private final static String CA_FOLDER = "CA/";
 	
+	/**
+	 * is proxy running ?
+	 */
 	private boolean running = false;
 	
+	/**
+	 * Proxy socket
+	 */
 	private ServerSocket proxySocket;
 	
+	/**
+	 * CA key
+	 */
 	private String caKey;
 	
+	/**
+	 * CA Cert
+	 */
 	private String caCert;
 	
+	/**
+	 * Cert Key
+	 */
 	private String certKey;
 	
+	/**
+	 * Website cert certificates
+	 */
 	private Path certsFolder;
 	
-	
+	/**
+	 * Main method
+	 * @param args [0] port (optional)
+	 */
 	public static void main(String[] args) {
 		int port = 9999;
 		if (args.length > 0) {
@@ -33,7 +62,7 @@ public class Interceptor {
 		
 		System.out.println("Proxy listening on port : " + port);
 		
-		Interceptor interceptor = new Interceptor(port);
+		Intercepter interceptor = new Intercepter(port);
 		interceptor.listen();
 		
 		System.out.println("Proxy stopped listening on port : " + port);
@@ -43,7 +72,7 @@ public class Interceptor {
 	 * Constructor
 	 * @param port
 	 */
-	public Interceptor(int port) {
+	public Intercepter(int port) {
 		File file;
 		try {
 			this.proxySocket = new ServerSocket(port);

@@ -8,12 +8,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -28,7 +25,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
 /**
- * 
+ * Connection intercepter
  * @author citestra
  *
  */
@@ -69,12 +66,6 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private DataOutputStream proxyToClientBw;
 
-
-	/**
-	 * Thread that is used to transmit data read from client to server 
-	 */
-	private Thread clientToServerThread;
-
 	/**
 	 * Headers to remove
 	 */
@@ -108,7 +99,7 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	/**
-	 * 
+	 * Run method
 	 */
 	@Override
 	public void run() {
@@ -118,13 +109,15 @@ public class ConnectionHandler implements Runnable {
 			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 			
 			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
-//				System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
+				// System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
+				
 				// 2 - Forward request to Remote server
 				switch(requestParsed.getRequestType()) {
 					case "CONNECT":
 						doConnect(requestParsed);
 					break;
 					case "GET":
+					case "POST":
 						doGet(requestParsed);
 					break;
 					default:
@@ -139,6 +132,10 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
+	/**
+	 * Get method handler
+	 * @param requestParsed
+	 */
 	private void doGet(HttpRequestParser requestParsed) {
 		try {
 			URL url = requestParsed.getUrl();
@@ -227,11 +224,13 @@ public class ConnectionHandler implements Runnable {
 				System.out.println(responseBuffer.size());
 				// Decode body, Modify response ...
 				byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
-//				String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
+				// String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
 				
-				// encode response and send it to client
+				// encode response
 				ByteArrayInputStream streamToSend = new ByteArrayInputStream(
 						CompressionUtils.encodeContentBody(responsePlain, contentEncoding));
+				
+				// Send encoded stream to client (navigator)
 				byte[] bodyChunk = new byte [BUFFER_SIZE];
 				int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
 				while ( read != -1 ) {
@@ -244,7 +243,6 @@ public class ConnectionHandler implements Runnable {
 				if (serverToProxyStream != null) {
 					serverToProxyStream.close();
 				}
-				
 			}
 			
 		} catch(IOException | DataFormatException e) {
@@ -255,7 +253,7 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	/**
-	 * Do connect
+	 * Do connect handler
 	 * @param requestParsed Client HTTP request
 	 * @throws IOException 
 	 */
@@ -264,10 +262,16 @@ public class ConnectionHandler implements Runnable {
 				&& !this.certKey.isEmpty() && this.certsFolder != null) {
 			connectionIntercept(requestParsed);
 		} else {
-			connectionRelay(requestParsed);
+			System.out.println("CA resources missing -> aborting mission !");
+			this.shutdown();
 		}
 	}
 
+	/**
+	 * Intercept HTTPS trafic (SSL handshake client <-> proxy) ------> In Progress
+	 * @param requestParsed
+	 * @throws IOException
+	 */
 	private void connectionIntercept(HttpRequestParser requestParsed) throws IOException {
 		String hostname = requestParsed.getUrl().getHost();
 		String certPath = String.format("%s/%s.crt", this.certsFolder.toAbsolutePath().toString(), hostname);
@@ -293,77 +297,6 @@ public class ConnectionHandler implements Runnable {
 		this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 	}
 
-	private void connectionRelay(HttpRequestParser requestParsed) {
-		try {
-			System.out.println("Relaying : " + requestParsed.getUrl());
-			// Client and Remote will both start sending data to proxy at this point
-			// Proxy needs to asynchronously read data from each party and send it to the other party
-
-			// Get actual IP associated with this URL through DNS
-			InetAddress address = InetAddress.getByName(requestParsed.getHostname());
-
-			// Open a socket to the remote server 
-			Socket proxyToServerSocket = new Socket(address, requestParsed.getPort());
-			proxyToServerSocket.setSoTimeout(5000);
-			// Send Connection established to the client
-			String line = "HTTP/1.0 200 Connection established\r\n" +
-					"Proxy-Agent: ProxyServer/1.0\r\n" +
-					"\r\n";
-			this.proxyToClientBw.write(line.getBytes(StandardCharsets.UTF_8));
-			this.proxyToClientBw.flush();
-
-			// Create a new thread to listen to client and transmit to server
-			ClientToServerHttpsTransmit clientToServerHttps = 
-					new ClientToServerHttpsTransmit(clientSocket.getInputStream(), proxyToServerSocket.getOutputStream());
-
-			clientToServerThread = new Thread(clientToServerHttps);
-			clientToServerThread.start();
-
-
-			// Listen to remote server and relay to client
-			try {
-				byte[] buffer = new byte[BUFFER_SIZE];
-				int read;
-				do {
-					read = proxyToServerSocket.getInputStream().read(buffer);
-					if (read > 0) {
-						this.proxyToClientBw.write(buffer, 0, read);
-						if (proxyToServerSocket.getInputStream().available() < 1) {
-							this.proxyToClientBw.flush();
-						}
-					}
-				} while (read >= 0);
-			}
-			catch (SocketTimeoutException e) {
-
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			// Close Down Resources
-			if(proxyToServerSocket != null){
-				proxyToServerSocket.close();
-			}
-		} catch (SocketTimeoutException e) {
-			String line = "HTTP/1.0 504 Timeout Occured after 10s\n" +
-					"User-Agent: ProxyServer/1.0\n" +
-					"\r\n";
-			try{
-				this.proxyToClientBw.write(line.getBytes(StandardCharsets.UTF_8));
-				this.proxyToClientBw.flush();
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-			}
-		} 
-		catch (Exception e){
-			System.out.println("Error on HTTPS : ");
-			e.printStackTrace();
-		} finally {
-			this.shutdown();
-		}
-	}
-	
 	/**
 	 * Shutdown Connection
 	 */
@@ -380,53 +313,6 @@ public class ConnectionHandler implements Runnable {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-		}
-	}
-	
-	/**
-	 * Listen to data from client and transmits it to server.
-	 * This is done on a separate thread as must be done 
-	 * asynchronously to reading data from server and transmitting 
-	 * that data to the client. 
-	 */
-	class ClientToServerHttpsTransmit implements Runnable{
-
-		InputStream proxyToClientIS;
-		OutputStream proxyToServerOS;
-
-		/**
-		 * Creates Object to Listen to Client and Transmit that data to the server
-		 * @param proxyToClientIS Stream that proxy uses to receive data from client
-		 * @param proxyToServerOS Stream that proxy uses to transmit data to remote server
-		 */
-		public ClientToServerHttpsTransmit(InputStream proxyToClientIS, OutputStream proxyToServerOS) {
-			this.proxyToClientIS = proxyToClientIS;
-			this.proxyToServerOS = proxyToServerOS;
-		}
-
-		@Override
-		public void run(){
-			try {
-				// Read byte by byte from client and send directly to server
-				byte[] buffer = new byte[BUFFER_SIZE];
-				int read;
-				do {
-					read = proxyToClientIS.read(buffer);
-					if (read > 0) {
-						proxyToServerOS.write(buffer, 0, read);
-						if (proxyToClientIS.available() < 1) {
-							proxyToServerOS.flush();
-						}
-					}
-				} while (read >= 0);
-			}
-			catch (SocketTimeoutException ste) {
-				
-			}
-			catch (IOException e) {
-				System.out.println("Proxy to client HTTPS read timed out");
-				e.printStackTrace();
-			}
 		}
 	}
 	

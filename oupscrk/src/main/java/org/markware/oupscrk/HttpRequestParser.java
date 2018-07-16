@@ -6,26 +6,76 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Hashtable;
 
+/**
+ * Request Parser
+ * @author citestra
+ *
+ */
 public class HttpRequestParser {
 
+	/**
+	 * Request line
+	 */
     private String requestLine;
+    
+    /**
+     * Command
+     */
     private String command;
+    
+    /**
+     * URL
+     */
     private URL url;
+    
+    /**
+     * HttpVersion
+     */
     private String httpVersion;
+    
+    /**
+     * Scheme
+     */
     private String scheme;
+    
+    /**
+     * Hostname
+     */
     private String hostname;
+    
+    /**
+     * Path
+     */
     private String path;
 
+    /**
+     * Port
+     */
 	private int port;
     
+	/**
+	 * Headers
+	 */
 	private Hashtable<String, String> headers;
+	
+	/**
+	 * Body
+	 */
     private StringBuffer body;
 
+    /**
+     * Constructor
+     */
     public HttpRequestParser() {
         headers = new Hashtable<String, String>();
         body = new StringBuffer();
     }
 
+    /**
+     * Parse request
+     * @param reader request reader
+     * @throws IOException
+     */
     public void parseRequest(BufferedReader reader) throws IOException {
     	
     	if (reader.ready()) {
@@ -36,31 +86,15 @@ public class HttpRequestParser {
         	setHeaders(reader);
         	
         	// BODY
-//        	setBody(reader);
+        	// setBody(reader);
     	}
     }
 
-    public void setHeaders(BufferedReader reader) throws IOException {
-		String header = reader.readLine();
-    	while (header.length() > 0) {
-			appendHeaderParameter(header);
-			header = reader.readLine();
-    	}
-    }
-    
-    public void setBody(BufferedReader reader) throws IOException {
-		String bodyLine = reader.readLine();
-    	while (bodyLine.length() > 0) {
-    		appendMessageBody(bodyLine);
-    		if (reader.ready())
-    			bodyLine = reader.readLine();
-    	}
-    }
-
-    public String getRequestLine() {
-        return requestLine;
-    }
-
+    /**
+     * Set request line
+     * @param reader
+     * @throws IOException
+     */
     private void setRequestLine(BufferedReader reader) throws IOException {
     	try {
     		String requestLine = reader.readLine();
@@ -110,7 +144,24 @@ public class HttpRequestParser {
 			e.printStackTrace();
 		}
     }
-
+    
+    /**
+     * Set headers
+     * @param reader
+     * @throws IOException
+     */
+    public void setHeaders(BufferedReader reader) throws IOException {
+		String header = reader.readLine();
+    	while (header.length() > 0) {
+			appendHeaderParameter(header);
+			header = reader.readLine();
+    	}
+    }
+    
+    /**
+     * Append header line to the rest of headers
+     * @param header
+     */
 	private void appendHeaderParameter(String header) {
         int idx = header.indexOf(":");
         if (idx == -1) {
@@ -121,13 +172,36 @@ public class HttpRequestParser {
         String headerValue = header.substring(idx + 1, header.length());
     	headers.put(headerName, headerValue);
     }
+	
+    /**
+     * Set body
+     * @param reader
+     * @throws IOException
+     */
+    public void setBody(BufferedReader reader) throws IOException {
+		String bodyLine = reader.readLine();
+    	while (bodyLine.length() > 0) {
+    		appendMessageBody(bodyLine);
+    		if (reader.ready())
+    			bodyLine = reader.readLine();
+    	}
+    }
+
+    /**
+     * Append body line to the rest of message body
+     * @param bodyLine
+     */
+    private void appendMessageBody(String bodyLine) {
+        body.append(bodyLine).append("\r\n");
+    }
+    
+    // ******************************* GETTERS ******************************************
+    public String getRequestLine() {
+        return requestLine;
+    }
 
     public String getMessageBody() {
         return body.toString();
-    }
-
-    private void appendMessageBody(String bodyLine) {
-        body.append(bodyLine).append("\r\n");
     }
 
     public String getHeaderParam(String headerName){
@@ -166,7 +240,4 @@ public class HttpRequestParser {
 		return headers;
 	}
 
-	public void setHeaders(Hashtable<String, String> headers) {
-		this.headers = headers;
-	}
 }
