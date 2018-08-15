@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -14,6 +15,9 @@ import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -21,8 +25,10 @@ import java.util.Map.Entry;
 import java.util.zip.DataFormatException;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Connection intercepter
@@ -31,6 +37,8 @@ import javax.net.ssl.SSLSocketFactory;
  */
 public class ConnectionHandler implements Runnable {
 
+	private static Object mutex = new Object();
+	
 	/**
 	 * Client socket
 	 */
@@ -39,17 +47,17 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * CA KEY
 	 */
-	private String caKey;
+	private PrivateKey caKey;
 	
 	/**
 	 * CA CERT
 	 */
-	private String caCert;
+	private X509Certificate caCert;
 	
 	/**
 	 * CERT KEY
 	 */
-	private String certKey;
+	private PrivateKey certKey;
 	
 	/**
 	 * CERTS FOLDER
@@ -82,7 +90,7 @@ public class ConnectionHandler implements Runnable {
 	 * Constructor
 	 * @param clientSocket
 	 */
-	public ConnectionHandler(Socket clientSocket, String caKey, String caCert, String certKey, Path certsFolder) {
+	public ConnectionHandler(Socket clientSocket, PrivateKey caKey, X509Certificate caCert, PrivateKey certKey, Path certsFolder) {
 		this.clientSocket = clientSocket;
 		this.caKey = caKey;
 		this.caCert = caCert;
@@ -124,7 +132,7 @@ public class ConnectionHandler implements Runnable {
 						break;
 				}
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 			System.out.println("Shutting down " + e.getMessage());
 		} finally {
@@ -255,11 +263,10 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Do connect handler
 	 * @param requestParsed Client HTTP request
-	 * @throws IOException 
+	 * @throws Exception 
 	 */
-	private void doConnect(HttpRequestParser requestParsed) throws IOException {
-		if (this.caKey != null && !this.caKey.isEmpty() && this.caCert != null && !this.caCert.isEmpty() && this.certKey != null 
-				&& !this.certKey.isEmpty() && this.certsFolder != null) {
+	private void doConnect(HttpRequestParser requestParsed) throws Exception {
+		if (this.caKey != null && this.caCert != null && this.certKey != null && this.certsFolder != null) {
 			connectionIntercept(requestParsed);
 		} else {
 			System.out.println("CA resources missing -> aborting mission !");
@@ -270,22 +277,50 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Intercept HTTPS trafic (SSL handshake client <-> proxy) ------> In Progress
 	 * @param requestParsed
-	 * @throws IOException
+	 * @throws Exception 
 	 */
-	private void connectionIntercept(HttpRequestParser requestParsed) throws IOException {
+	private void connectionIntercept(HttpRequestParser requestParsed) throws Exception {
 		String hostname = requestParsed.getUrl().getHost();
-		String certPath = String.format("%s/%s.crt", this.certsFolder.toAbsolutePath().toString(), hostname);
+		String certFile = String.format("%s/%s.p12", this.certsFolder.toAbsolutePath().toString(), hostname);
 		
-		// This chunk should be Thread safe !
-		if (new File(certPath).exists()) {
-			
+		// TODO: This chunk should be Thread safe !
+		synchronized(mutex) {
+			if (!new File(certFile).exists()) {
+				// TODO: GENERATE CSR (using certKey && CN : hostname)
+				// TODO: SELF-SIGN THE CSR TO OBTAIN A CERT (sign with caKey => output certFile)
+				SecurityUtils.createIntermediateCert(hostname, certFile, this.certKey, this.caKey, this.caCert);
+				
+				// write certificate to certFile
+//				String cert_begin = "-----BEGIN CERTIFICATE-----\n";
+//				String end_cert = "-----END CERTIFICATE-----";
+//
+//				byte[] derCert = hostnameCert.getEncoded();
+//				String pemCertPre = new String(Base64.getEncoder().encode(derCert));
+//				String pemCert = cert_begin + pemCertPre + end_cert;
+//				FileOutputStream fous = new FileOutputStream(certFile);
+//				OutputStreamWriter ousw = new OutputStreamWriter(fous);
+//				ousw.write(pemCert);
+//				ousw.flush();
+//				fous.close();
+//				ousw.close();
+			}
 		}
 		
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
 		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
 		
 		// wrap client socket
-		SSLSocket sslSocket = (SSLSocket) ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(
+		FileInputStream is = new FileInputStream(certFile);
+		KeyStore keyStore = KeyStore.getInstance("PKCS12");
+		keyStore.load(is, "secret".toCharArray());
+
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance("X509");
+		kmf.init(keyStore, null);
+		KeyManager[] keyManagers = kmf.getKeyManagers();
+		SSLContext sslContext = SSLContext.getInstance("TLS");
+		sslContext.init(keyManagers, null, null);
+		
+		SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
 											this.clientSocket, 
 											this.clientSocket.getInetAddress().getHostAddress(), 
 											this.clientSocket.getPort(), 
