@@ -6,6 +6,7 @@ import java.security.KeyFactory;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -52,7 +53,7 @@ public class SecurityUtils {
 		//
 		// create the certificate - version 3
 		//
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, BigInteger.valueOf(2),
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
 				nameBuilder.build(), certPublicKey);
 
@@ -76,7 +77,7 @@ public class SecurityUtils {
 				true,
 				new BasicConstraints(0));
 
-		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA1WithRSA").setProvider("BC").build(caPrivateKey));
+		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(caPrivateKey));
 
 		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHldr);
 

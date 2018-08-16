@@ -314,8 +314,8 @@ public class ConnectionHandler implements Runnable {
 		KeyStore keyStore = KeyStore.getInstance("PKCS12");
 		keyStore.load(is, "secret".toCharArray());
 
-		KeyManagerFactory kmf = KeyManagerFactory.getInstance("X509");
-		kmf.init(keyStore, null);
+		KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+		kmf.init(keyStore, "secret".toCharArray());
 		KeyManager[] keyManagers = kmf.getKeyManagers();
 		SSLContext sslContext = SSLContext.getInstance("TLS");
 		sslContext.init(keyManagers, null, null);
