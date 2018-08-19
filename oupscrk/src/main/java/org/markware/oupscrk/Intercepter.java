@@ -47,10 +47,20 @@ public class Intercepter {
 	private PrivateKey caKey;
 
 	/**
+	 * Intermediate Key
+	 */
+	private PrivateKey intKey;
+	
+	/**
 	 * CA Cert
 	 */
 	private X509Certificate caCert;
 
+	/**
+	 * Intermediate Cert
+	 */
+	private X509Certificate intCert;
+	
 	/**
 	 * Cert Key
 	 */
@@ -92,6 +102,11 @@ public class Intercepter {
 			/* CA KEY */
 			file = new File(classLoader.getResource(CA_FOLDER + "ca.key").getFile());
 			this.caKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
+			
+			/* Int KEY */
+			file = new File(classLoader.getResource(CA_FOLDER + "int.key").getFile());
+			this.intKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
+			
 			/* CA CERT */
 			file = new File(classLoader.getResource(CA_FOLDER + "ca.crt").getFile());
 			String caCertStr = new String(Files.readAllBytes(file.toPath()));
@@ -102,7 +117,17 @@ public class Intercepter {
 									 .replace("-----END CERTIFICATE-----", "")
 									 .replaceAll("\\n",  "")
 									)));
-
+			
+			/* INT CERT */
+			file = new File(classLoader.getResource(CA_FOLDER + "int.crt").getFile());
+			String intCertStr = new String(Files.readAllBytes(file.toPath()));
+			this.intCert = (X509Certificate) cf.generateCertificate(
+					new ByteArrayInputStream(Base64.getDecoder().decode(
+							intCertStr.replace("-----BEGIN CERTIFICATE-----", "")
+									 .replace("-----END CERTIFICATE-----", "")
+									 .replaceAll("\\n",  "")
+									)));
+			
 			/* CERT KEY */
 			file = new File(classLoader.getResource(CA_FOLDER + "cert.key").getFile());
 			this.certKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
@@ -121,7 +146,7 @@ public class Intercepter {
 		while(this.running) {
 			try {
 				Socket clientSocket = this.proxySocket.accept();
-				Thread t = new Thread(new ConnectionHandler(clientSocket, this.caKey, this.caCert, this.certKey, this.certsFolder));
+				Thread t = new Thread(new ConnectionHandler(clientSocket, this.caKey, this.intKey, this.caCert, this.intCert, this.certKey, this.certsFolder));
 				t.start();
 			} catch (IOException e) {
 				e.printStackTrace();

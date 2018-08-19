@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,9 +51,19 @@ public class ConnectionHandler implements Runnable {
 	private PrivateKey caKey;
 	
 	/**
-	 * CA CERT
+	 * Intermediate Key
+	 */
+	private PrivateKey intKey;
+	
+	/**
+	 * CA Cert
 	 */
 	private X509Certificate caCert;
+
+	/**
+	 * Intermediate Cert
+	 */
+	private X509Certificate intCert;
 	
 	/**
 	 * CERT KEY
@@ -90,10 +101,19 @@ public class ConnectionHandler implements Runnable {
 	 * Constructor
 	 * @param clientSocket
 	 */
-	public ConnectionHandler(Socket clientSocket, PrivateKey caKey, X509Certificate caCert, PrivateKey certKey, Path certsFolder) {
+	public ConnectionHandler(
+			Socket clientSocket, 
+			PrivateKey caKey, 
+			PrivateKey intKey, 
+			X509Certificate caCert, 
+			X509Certificate intCert, 
+			PrivateKey certKey, 
+			Path certsFolder) {
 		this.clientSocket = clientSocket;
 		this.caKey = caKey;
+		this.intKey = intKey;
 		this.caCert = caCert;
+		this.intCert = intCert;
 		this.certKey = certKey;
 		this.certsFolder = certsFolder;
 		try{
@@ -149,117 +169,133 @@ public class ConnectionHandler implements Runnable {
 			URL url = requestParsed.getUrl();
 			String protocolHttp = requestParsed.getScheme();
 			
-			// HTTP Connection
-			HttpURLConnection conn;
-			if ("https".equals(protocolHttp)) {
-				conn = (HttpsURLConnection)url.openConnection();
+			if (url.toString().contains("oupscrk.local")) {
+				sendCaCert(requestParsed);
 			} else {
-				conn = (HttpURLConnection)url.openConnection();
-			}
-			
-			// Set Request Method
-			conn.setRequestMethod(requestParsed.getRequestType());
-			
-			// Set headers (filtering out proxy headers)
-			if (requestParsed.getHeaders() != null) {
-				requestParsed.getHeaders().entrySet().forEach((entry) -> {
-					if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
-						conn.setRequestProperty(entry.getKey(), entry.getValue());
-					}
-				});
-			}
-			
-			// Send body if there is one
-			String requestBody = requestParsed.getMessageBody();
-			if (requestBody != null && !requestBody.isEmpty()) {
-				conn.setDoOutput(true);
-				OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);    
-	            osw.write(requestBody);
-	            osw.flush();
-	            osw.close(); 
-			}
-			
-			conn.setReadTimeout(10000);
-			conn.setConnectTimeout(10000);
-			
-			conn.setDoInput(true);
-			conn.setAllowUserInteraction(false);
-			conn.connect();
-			
-			// Get the response stream
-			InputStream serverToProxyStream = null;
-			int responseCode = conn.getResponseCode();
-			if (responseCode >= 400) {
-				serverToProxyStream = conn.getErrorStream();
-			} else {
-				serverToProxyStream = conn.getInputStream();
-			}
-
-			// Send response to client
-			if (serverToProxyStream != null) {
+				// HTTP Connection
+				HttpURLConnection conn;
+				if ("https".equals(protocolHttp)) {
+					conn = (HttpsURLConnection)url.openConnection();
+				} else {
+					conn = (HttpURLConnection)url.openConnection();
+				}
 				
-				// send statusLine
-				String statusLine = conn.getHeaderField(0);
-				this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
+				// Set Request Method
+				conn.setRequestMethod(requestParsed.getRequestType());
 				
-				// send headers (filtered)
-				for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
-					if (header.getKey() != null && !HEADERS_TO_REMOVE.contains(header.getKey())) {
-						this.proxyToClientBw.write(
-								  new StringBuilder().append(header.getKey())
-													 .append(": ")
-													 .append(String.join(", ", header.getValue()))
-													 .append("\r\n")
-													 .toString()
-													 .getBytes(StandardCharsets.UTF_8));
-					}
+				// Set headers (filtering out proxy headers)
+				if (requestParsed.getHeaders() != null) {
+					requestParsed.getHeaders().entrySet().forEach((entry) -> {
+						if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
+							conn.setRequestProperty(entry.getKey(), entry.getValue());
+						}
+					});
+				}
+				
+				// Send body if there is one
+				String requestBody = requestParsed.getMessageBody();
+				if (requestBody != null && !requestBody.isEmpty()) {
+					conn.setDoOutput(true);
+					OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);    
+		            osw.write(requestBody);
+		            osw.flush();
+		            osw.close(); 
+				}
+				
+				conn.setReadTimeout(10000);
+				conn.setConnectTimeout(10000);
+				
+				conn.setDoInput(true);
+				conn.setAllowUserInteraction(false);
+				conn.connect();
+				
+				// Get the response stream
+				InputStream serverToProxyStream = null;
+				int responseCode = conn.getResponseCode();
+				if (responseCode >= 400) {
+					serverToProxyStream = conn.getErrorStream();
+				} else {
+					serverToProxyStream = conn.getInputStream();
 				}
 
-				// end headers
-				this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
-				
-				// send body
-				String contentEncoding = conn.getContentEncoding();
-				ByteArrayOutputStream responseBuffer = new ByteArrayOutputStream();
-				byte by[] = new byte[ BUFFER_SIZE ];
-				int index = serverToProxyStream.read(by, 0, BUFFER_SIZE);
-				while ( index != -1 ) {
-					responseBuffer.write(by, 0, index);
-					index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-				}
-				responseBuffer.flush();
-				
-				System.out.println(responseBuffer.size());
-				// Decode body, Modify response ...
-				byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
-				// String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
-				
-				// encode response
-				ByteArrayInputStream streamToSend = new ByteArrayInputStream(
-						CompressionUtils.encodeContentBody(responsePlain, contentEncoding));
-				
-				// Send encoded stream to client (navigator)
-				byte[] bodyChunk = new byte [BUFFER_SIZE];
-				int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
-				while ( read != -1 ) {
-					this.proxyToClientBw.write(bodyChunk, 0, read);
-					read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
-				}
-				this.proxyToClientBw.flush();
-				
-				// Close Remote Server -> Proxy Stream
+				// Send response to client
 				if (serverToProxyStream != null) {
-					serverToProxyStream.close();
+					
+					// send statusLine
+					String statusLine = conn.getHeaderField(0);
+					this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
+					
+					// send headers (filtered)
+					for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
+						if (header.getKey() != null && !HEADERS_TO_REMOVE.contains(header.getKey())) {
+							this.proxyToClientBw.write(
+									  new StringBuilder().append(header.getKey())
+														 .append(": ")
+														 .append(String.join(", ", header.getValue()))
+														 .append("\r\n")
+														 .toString()
+														 .getBytes(StandardCharsets.UTF_8));
+						}
+					}
+
+					// end headers
+					this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+					
+					// send body
+					String contentEncoding = conn.getContentEncoding();
+					ByteArrayOutputStream responseBuffer = new ByteArrayOutputStream();
+					byte by[] = new byte[ BUFFER_SIZE ];
+					int index = serverToProxyStream.read(by, 0, BUFFER_SIZE);
+					while ( index != -1 ) {
+						responseBuffer.write(by, 0, index);
+						index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
+					}
+					responseBuffer.flush();
+					
+					System.out.println(responseBuffer.size());
+					// Decode body, Modify response ...
+					byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
+					// String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
+					
+					// encode response
+					ByteArrayInputStream streamToSend = new ByteArrayInputStream(
+							CompressionUtils.encodeContentBody(responsePlain, contentEncoding));
+					
+					// Send encoded stream to client (navigator)
+					byte[] bodyChunk = new byte [BUFFER_SIZE];
+					int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
+					while ( read != -1 ) {
+						this.proxyToClientBw.write(bodyChunk, 0, read);
+						read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
+					}
+					this.proxyToClientBw.flush();
+					
+					// Close Remote Server -> Proxy Stream
+					if (serverToProxyStream != null) {
+						serverToProxyStream.close();
+					}
 				}
 			}
-			
-		} catch(IOException | DataFormatException e) {
+		} catch(IOException | DataFormatException | CertificateEncodingException e) {
 			System.out.println("********* IO EXCEPTION **********: " + e);
 		} finally {
 			this.shutdown();
 		}
 	}
 	
+	private void sendCaCert(HttpRequestParser requestParsed) throws IOException, CertificateEncodingException {
+		byte[] caCertData = this.caCert.getEncoded();
+		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Type", "application/x-x509-ca-cert").getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Length", caCertData.length).getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Connection", "close").getBytes(StandardCharsets.UTF_8));
+		
+		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+		
+		this.proxyToClientBw.write(caCertData);
+		this.proxyToClientBw.flush();
+	}
+
 	/**
 	 * Do connect handler
 	 * @param requestParsed Client HTTP request
@@ -288,7 +324,7 @@ public class ConnectionHandler implements Runnable {
 			if (!new File(certFile).exists()) {
 				// TODO: GENERATE CSR (using certKey && CN : hostname)
 				// TODO: SELF-SIGN THE CSR TO OBTAIN A CERT (sign with caKey => output certFile)
-				SecurityUtils.createIntermediateCert(hostname, certFile, this.certKey, this.caKey, this.caCert);
+				SecurityUtils.createIntermediateCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
 				
 				// write certificate to certFile
 //				String cert_begin = "-----BEGIN CERTIFICATE-----\n";

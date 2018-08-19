@@ -16,7 +16,6 @@ import java.util.Date;
 
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
-import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -33,7 +32,9 @@ public class SecurityUtils {
 			String certFile,
 			PrivateKey certPrivateKey,
 			PrivateKey caPrivateKey,
-			X509Certificate caCert) throws Exception {
+			PrivateKey intPrivateKey,
+			X509Certificate caCert,
+			X509Certificate intCert) throws Exception {
 
 		Security.addProvider(new BouncyCastleProvider());
 
@@ -53,7 +54,7 @@ public class SecurityUtils {
 		//
 		// create the certificate - version 3
 		//
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, new BigInteger(32, new SecureRandom()),
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(intCert, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
 				nameBuilder.build(), certPublicKey);
 
@@ -70,23 +71,24 @@ public class SecurityUtils {
 		v3Bldr.addExtension(
 				Extension.authorityKeyIdentifier,
 				false,
-				extUtils.createAuthorityKeyIdentifier(caCert));
+				extUtils.createAuthorityKeyIdentifier(intCert));
 
-		v3Bldr.addExtension(
-				Extension.basicConstraints,
-				true,
-				new BasicConstraints(0));
+//		v3Bldr.addExtension(
+//				Extension.basicConstraints,
+//				true,
+//				new BasicConstraints(0));
 
-		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(caPrivateKey));
+		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(intPrivateKey));
 
 		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHldr);
 
 		cert.checkValidity(new Date());
 
-		cert.verify(caCert.getPublicKey());
+		cert.verify(intCert.getPublicKey());
 
-		Certificate[] chain = new Certificate[2];
-		chain[1] = (Certificate) caCert;
+		Certificate[] chain = new Certificate[3];
+		chain[2] = (Certificate) caCert;
+		chain[1] = (Certificate) intCert;
 		chain[0] = (Certificate) cert;
 
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");
