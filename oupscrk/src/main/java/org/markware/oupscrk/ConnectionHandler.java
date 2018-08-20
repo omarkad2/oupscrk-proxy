@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.zip.DataFormatException;
 
+import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -322,50 +324,45 @@ public class ConnectionHandler implements Runnable {
 		// TODO: This chunk should be Thread safe !
 		synchronized(mutex) {
 			if (!new File(certFile).exists()) {
-				// TODO: GENERATE CSR (using certKey && CN : hostname)
-				// TODO: SELF-SIGN THE CSR TO OBTAIN A CERT (sign with caKey => output certFile)
-				SecurityUtils.createIntermediateCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
-				
-				// write certificate to certFile
-//				String cert_begin = "-----BEGIN CERTIFICATE-----\n";
-//				String end_cert = "-----END CERTIFICATE-----";
-//
-//				byte[] derCert = hostnameCert.getEncoded();
-//				String pemCertPre = new String(Base64.getEncoder().encode(derCert));
-//				String pemCert = cert_begin + pemCertPre + end_cert;
-//				FileOutputStream fous = new FileOutputStream(certFile);
-//				OutputStreamWriter ousw = new OutputStreamWriter(fous);
-//				ousw.write(pemCert);
-//				ousw.flush();
-//				fous.close();
-//				ousw.close();
+				SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
 			}
+			
+			this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
+			this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+			
+			// wrap client socket
+			FileInputStream is = new FileInputStream(certFile);
+			KeyStore keyStore = KeyStore.getInstance("PKCS12");
+			keyStore.load(is, "secret".toCharArray());
+
+			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+			kmf.init(keyStore, "secret".toCharArray());
+			KeyManager[] keyManagers = kmf.getKeyManagers();
+			SSLContext sslContext = SSLContext.getInstance("TLS");
+			sslContext.init(keyManagers, null, new SecureRandom());
+			
+			SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
+												this.clientSocket, 
+												this.clientSocket.getInetAddress().getHostAddress(), 
+												this.clientSocket.getPort(), 
+								                true);
+			sslSocket.setUseClientMode(false);
+			sslSocket.startHandshake();
+			
+			sslSocket.addHandshakeCompletedListener(
+					(HandshakeCompletedEvent handshakeCompletedEvent) -> {
+		            try {
+						System.out.println(handshakeCompletedEvent.getPeerCertificateChain());
+						this.clientSocket = sslSocket;
+						this.proxyToClientBr = this.clientSocket.getInputStream();
+						this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+	        });
 		}
 		
-		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
-		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
 		
-		// wrap client socket
-		FileInputStream is = new FileInputStream(certFile);
-		KeyStore keyStore = KeyStore.getInstance("PKCS12");
-		keyStore.load(is, "secret".toCharArray());
-
-		KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-		kmf.init(keyStore, "secret".toCharArray());
-		KeyManager[] keyManagers = kmf.getKeyManagers();
-		SSLContext sslContext = SSLContext.getInstance("TLS");
-		sslContext.init(keyManagers, null, null);
-		
-		SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
-											this.clientSocket, 
-											this.clientSocket.getInetAddress().getHostAddress(), 
-											this.clientSocket.getPort(), 
-							                true);
-		sslSocket.setUseClientMode(false);
-		sslSocket.startHandshake();
-		this.clientSocket = sslSocket;
-		this.proxyToClientBr = this.clientSocket.getInputStream();
-		this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 	}
 
 	/**

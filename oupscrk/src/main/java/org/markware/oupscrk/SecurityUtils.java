@@ -14,9 +14,12 @@ import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Date;
 
+import org.bouncycastle.asn1.ASN1Encodable;
+import org.bouncycastle.asn1.DERSequence;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
@@ -27,7 +30,7 @@ import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 public class SecurityUtils {
 
-	public static void createIntermediateCert(
+	public static void createHostCert(
 			String hostname,
 			String certFile,
 			PrivateKey certPrivateKey,
@@ -50,11 +53,11 @@ public class SecurityUtils {
 		X500NameBuilder nameBuilder = new X500NameBuilder();
 
 		nameBuilder.addRDN(BCStyle.CN, hostname);
-
+		
 		//
 		// create the certificate - version 3
 		//
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(intCert, new BigInteger(32, new SecureRandom()),
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
 				nameBuilder.build(), certPublicKey);
 
@@ -71,24 +74,34 @@ public class SecurityUtils {
 		v3Bldr.addExtension(
 				Extension.authorityKeyIdentifier,
 				false,
-				extUtils.createAuthorityKeyIdentifier(intCert));
+				extUtils.createAuthorityKeyIdentifier(caCert));
+
+		ASN1Encodable[] subjectAlternativeNames = new ASN1Encodable[]
+			    {
+			        new GeneralName(GeneralName.dNSName, hostname)
+			    };
+		
+		v3Bldr.addExtension(
+				Extension.subjectAlternativeName, 
+				false, 
+				new DERSequence(subjectAlternativeNames));
 
 //		v3Bldr.addExtension(
 //				Extension.basicConstraints,
 //				true,
 //				new BasicConstraints(0));
 
-		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(intPrivateKey));
+		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(caPrivateKey));
 
 		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHldr);
 
 		cert.checkValidity(new Date());
 
-		cert.verify(intCert.getPublicKey());
+		cert.verify(caCert.getPublicKey());
 
-		Certificate[] chain = new Certificate[3];
-		chain[2] = (Certificate) caCert;
-		chain[1] = (Certificate) intCert;
+		Certificate[] chain = new Certificate[2];
+		chain[1] = (Certificate) caCert;
+//		chain[1] = (Certificate) intCert;
 		chain[0] = (Certificate) cert;
 
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");

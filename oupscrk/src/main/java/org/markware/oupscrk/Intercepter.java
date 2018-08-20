@@ -132,7 +132,7 @@ public class Intercepter {
 			file = new File(classLoader.getResource(CA_FOLDER + "cert.key").getFile());
 			this.certKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
 			/* CERTS FOLDER */
-			this.certsFolder = Files.createTempDirectory(Paths.get(""), "certs");
+			this.certsFolder = Paths.get(System.getProperty("java.io.tmpdir"), "certs");
 		} catch (IOException | GeneralSecurityException e) {
 			System.out.println("Couldn't create proxy socket");
 			e.printStackTrace();
