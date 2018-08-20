@@ -57,7 +57,7 @@ public class SecurityUtils {
 		//
 		// create the certificate - version 3
 		//
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, new BigInteger(32, new SecureRandom()),
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(intCert, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
 				nameBuilder.build(), certPublicKey);
 
@@ -74,7 +74,7 @@ public class SecurityUtils {
 		v3Bldr.addExtension(
 				Extension.authorityKeyIdentifier,
 				false,
-				extUtils.createAuthorityKeyIdentifier(caCert));
+				extUtils.createAuthorityKeyIdentifier(intCert));
 
 		ASN1Encodable[] subjectAlternativeNames = new ASN1Encodable[]
 			    {
@@ -86,22 +86,17 @@ public class SecurityUtils {
 				false, 
 				new DERSequence(subjectAlternativeNames));
 
-//		v3Bldr.addExtension(
-//				Extension.basicConstraints,
-//				true,
-//				new BasicConstraints(0));
-
-		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(caPrivateKey));
+		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(intPrivateKey));
 
 		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHldr);
 
 		cert.checkValidity(new Date());
 
-		cert.verify(caCert.getPublicKey());
+		cert.verify(intCert.getPublicKey());
 
-		Certificate[] chain = new Certificate[2];
-		chain[1] = (Certificate) caCert;
-//		chain[1] = (Certificate) intCert;
+		Certificate[] chain = new Certificate[3];
+		chain[2] = (Certificate) caCert;
+		chain[1] = (Certificate) intCert;
 		chain[0] = (Certificate) cert;
 
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");

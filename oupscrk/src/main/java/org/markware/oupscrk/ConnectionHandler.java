@@ -323,6 +323,7 @@ public class ConnectionHandler implements Runnable {
 		
 		// TODO: This chunk should be Thread safe !
 		synchronized(mutex) {
+			System.out.println("Hostname : " + hostname);
 			if (!new File(certFile).exists()) {
 				SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
 			}

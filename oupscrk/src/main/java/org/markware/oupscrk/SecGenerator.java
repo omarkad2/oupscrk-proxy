@@ -48,15 +48,15 @@ public class SecGenerator {
 		X500NameBuilder nameBuilder = new X500NameBuilder();
 
 		nameBuilder.addRDN(BCStyle.C, "MA");
-		nameBuilder.addRDN(BCStyle.O, "CA-Oupscrk");
-		nameBuilder.addRDN(BCStyle.OU, "CA-Oupscrk");
-		nameBuilder.addRDN(BCStyle.CN, "CA-Oupscrk");
+		nameBuilder.addRDN(BCStyle.O, "Markware");
+		nameBuilder.addRDN(BCStyle.OU, "www.markware.com");
+		nameBuilder.addRDN(BCStyle.CN, "Markware-CA");
 
 		X500Name x500Name = nameBuilder.build();
 		//
 		// create the certificate - version 3
 		//
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(x500Name, BigInteger.ONE,
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(x500Name, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30) * 10),
 				x500Name, pubKey);
 
@@ -116,10 +116,10 @@ public class SecGenerator {
 				false,
 				extUtils.createAuthorityKeyIdentifier(caCert));
 
-//		v3Bldr.addExtension(
-//				Extension.basicConstraints,
-//				false,
-//				new BasicConstraints(0));
+		v3Bldr.addExtension(
+				Extension.basicConstraints,
+				false,
+				new BasicConstraints(0));
 
 		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256withRSA").setProvider("BC").build(caPrivKey));
 
