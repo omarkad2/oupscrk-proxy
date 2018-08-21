@@ -17,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.SecureRandom;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -28,7 +27,6 @@ import java.util.zip.DataFormatException;
 
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -97,7 +95,7 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Buffer Size
 	 */
-	private static final int BUFFER_SIZE = 32768;
+	private static final int BUFFER_SIZE = 65536;
 	
 	/**
 	 * Constructor
@@ -139,16 +137,16 @@ public class ConnectionHandler implements Runnable {
 			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 			
 			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
-				// System.out.println(requestParsed.getRequestType() + " " + requestParsed.getUrl());
 				
 				// 2 - Forward request to Remote server
 				switch(requestParsed.getRequestType()) {
 					case "CONNECT":
 						doConnect(requestParsed);
-					break;
+						requestParsed.setRequestType("GET");
 					case "GET":
 					case "POST":
 						doGet(requestParsed);
+//						this.shutdown();
 					break;
 					default:
 						break;
@@ -167,6 +165,7 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed
 	 */
 	private void doGet(HttpRequestParser requestParsed) {
+		System.out.println("Hostname : " + requestParsed.getHostname());
 		try {
 			URL url = requestParsed.getUrl();
 			String protocolHttp = requestParsed.getScheme();
@@ -321,9 +320,7 @@ public class ConnectionHandler implements Runnable {
 		String hostname = requestParsed.getUrl().getHost();
 		String certFile = String.format("%s/%s.p12", this.certsFolder.toAbsolutePath().toString(), hostname);
 		
-		// TODO: This chunk should be Thread safe !
 		synchronized(mutex) {
-			System.out.println("Hostname : " + hostname);
 			if (!new File(certFile).exists()) {
 				SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
 			}
@@ -338,38 +335,41 @@ public class ConnectionHandler implements Runnable {
 
 			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
 			kmf.init(keyStore, "secret".toCharArray());
-			KeyManager[] keyManagers = kmf.getKeyManagers();
+			
 			SSLContext sslContext = SSLContext.getInstance("TLS");
-			sslContext.init(keyManagers, null, new SecureRandom());
+			sslContext.init(kmf.getKeyManagers(), null, null);
 			
 			SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
 												this.clientSocket, 
 												this.clientSocket.getInetAddress().getHostAddress(), 
 												this.clientSocket.getPort(), 
 								                true);
-			sslSocket.setUseClientMode(false);
-			sslSocket.startHandshake();
 			
+			sslSocket.setUseClientMode(false);
+			sslSocket.setNeedClientAuth(false);
+			sslSocket.setWantClientAuth(false);
 			sslSocket.addHandshakeCompletedListener(
 					(HandshakeCompletedEvent handshakeCompletedEvent) -> {
-		            try {
-						System.out.println(handshakeCompletedEvent.getPeerCertificateChain());
-						this.clientSocket = sslSocket;
-						this.proxyToClientBr = this.clientSocket.getInputStream();
-						this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-	        });
+						try {
+							this.clientSocket = handshakeCompletedEvent.getSocket();
+							this.proxyToClientBr = this.clientSocket.getInputStream();
+							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
+//							this.proxyToClientBw.write("<html>oussama</html>".getBytes());
+//							this.proxyToClientBw.flush();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					});
+			
+        	sslSocket.startHandshake();
 		}
-		
-		
 	}
 
 	/**
 	 * Shutdown Connection
 	 */
 	private void shutdown() {
+		System.out.println("Shutting down");
 		try {
 			if (this.proxyToClientBr != null) {
 				this.proxyToClientBr.close();

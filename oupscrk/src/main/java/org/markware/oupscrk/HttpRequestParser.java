@@ -212,6 +212,10 @@ public class HttpRequestParser {
 		return command;
 	}
 
+    public void setRequestType(String command) {
+		this.command = command;
+	}
+    
 	public String getHostname() {
 		return hostname;
 	}

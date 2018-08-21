@@ -29,3 +29,5 @@ local.properties
 *.launch
 .idea/
 /.recommenders/
+
+/oupscrk/certs/*
