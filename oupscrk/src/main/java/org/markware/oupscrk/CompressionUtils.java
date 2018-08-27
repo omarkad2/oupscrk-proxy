@@ -72,9 +72,9 @@ public class CompressionUtils {
 			return result;
 		}
 		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
-			result = CompressionUtils.gzipCompress(plainBody);
+			result = gzipCompress(plainBody);
 		} else if ("deflate".equals(encodingAlg)) {
-			result = CompressionUtils.zlibCompress(plainBody);
+			result = zlibCompress(plainBody);
 		} else {
 			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
 		}
@@ -87,9 +87,9 @@ public class CompressionUtils {
 			return result;
 		}
 		if ("gzip".equals(encodingAlg) || "x-gzip".equals(encodingAlg)) {
-			result = CompressionUtils.gzipDecompress(encodedBody);
+			result = gzipDecompress(encodedBody);
 		} else if ("deflate".equals(encodingAlg)) {
-			result = CompressionUtils.zlibDecompress(encodedBody);
+			result = zlibDecompress(encodedBody);
 		} else {
 			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
 		}
