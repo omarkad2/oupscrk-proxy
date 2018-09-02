@@ -1,11 +1,13 @@
 package org.markware.oupscrk;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -22,6 +24,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.zip.DataFormatException;
 
@@ -132,24 +135,24 @@ public class ConnectionHandler implements Runnable {
 	@Override
 	public void run() {
 		// 1 - Parse request from Client
-		try{
-			HttpRequestParser requestParsed = new HttpRequestParser();
+		HttpRequestParser requestParsed = new HttpRequestParser();
+		try {
 			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
+		} catch (IOException e) {
+			System.out.println("=> Error parsing request : " + e.getMessage());
+			this.shutdown();
+		}
 
-			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
+		if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
 
-				// 2 - Forward request to Remote server
-				switch(requestParsed.getRequestType()) {
-				case "CONNECT":
-					doConnect(requestParsed);
-				default:
-					doGet(requestParsed);
-					break;
-				}
+			// 2 - Forward request to Remote server
+			switch(requestParsed.getRequestType()) {
+			case "CONNECT":
+				doConnect(requestParsed);
+			default:
+				doGet(requestParsed);
+				break;
 			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println("Shutting down " + e.getMessage());
 		}
 	}
 
@@ -158,7 +161,6 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed
 	 */
 	private void doGet(HttpRequestParser requestParsed) {
-		System.out.println("Hostname : " + requestParsed.getHostname());
 		try {
 			URL url = requestParsed.getUrl();
 			String protocolHttp = requestParsed.getScheme();
@@ -200,8 +202,6 @@ public class ConnectionHandler implements Runnable {
 				conn.setReadTimeout(10000);
 				conn.setConnectTimeout(10000);
 
-				conn.setDoInput(true);
-				conn.setAllowUserInteraction(false);
 				conn.connect();
 
 				// Get the response stream
@@ -229,8 +229,8 @@ public class ConnectionHandler implements Runnable {
 
 					// Decode body, Modify response ...
 					byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
-//					String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
-//					System.out.println(responsePlainStr);
+					String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
+					//					System.out.println(responsePlainStr);
 					// encode response
 					byte[] encodedResponse = CompressionUtils.encodeContentBody(responsePlain, contentEncoding);
 					ByteArrayInputStream streamToSend = new ByteArrayInputStream(encodedResponse);
@@ -264,6 +264,8 @@ public class ConnectionHandler implements Runnable {
 					}
 					this.proxyToClientBw.flush();
 
+					displayInfo(requestParsed, conn.getHeaderFields(), responsePlainStr);
+					
 					// Close Remote Server -> Proxy Stream
 					if (serverToProxyStream != null) {
 						serverToProxyStream.close();
@@ -271,7 +273,7 @@ public class ConnectionHandler implements Runnable {
 				}
 			}
 		} catch(IOException | DataFormatException | CertificateEncodingException e) {
-			System.out.println("********* IO EXCEPTION **********: " + e);
+			System.out.println("********* DOGET EXCEPTION **********: " + requestParsed.getHostname() + " : " + e);
 		} finally {
 			this.shutdown();
 		}
@@ -308,7 +310,7 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed Client HTTP request
 	 * @throws Exception 
 	 */
-	private void doConnect(HttpRequestParser requestParsed) throws Exception {
+	private void doConnect(HttpRequestParser requestParsed) {
 		if (this.caKey != null && this.caCert != null && this.certKey != null && this.certsFolder != null) {
 			connectionIntercept(requestParsed);
 		} else {
@@ -322,55 +324,91 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed
 	 * @throws Exception 
 	 */
-	private void connectionIntercept(HttpRequestParser requestParsed) throws Exception {
+	private void connectionIntercept(HttpRequestParser requestParsed) {
 		String hostname = requestParsed.getUrl().getHost();
 		String certFile = String.format("%s/%s.p12", this.certsFolder.toAbsolutePath().toString(), hostname);
 
-		synchronized(mutex) {
-			if (!new File(certFile).exists()) {
-				SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
+		try {
+			synchronized(mutex) {
+				if (!new File(certFile).exists()) {
+
+					SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
+				}
+
+				this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
+				this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+
+				// wrap client socket
+				FileInputStream is = new FileInputStream(certFile);
+				KeyStore keyStore = KeyStore.getInstance("PKCS12");
+				keyStore.load(is, "secret".toCharArray());
+
+				KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
+				kmf.init(keyStore, "secret".toCharArray());
+
+				SSLContext sslContext = SSLContext.getInstance("TLS");
+				sslContext.init(kmf.getKeyManagers(), null, null);
+
+				SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
+						this.clientSocket, 
+						this.clientSocket.getInetAddress().getHostAddress(), 
+						this.clientSocket.getPort(), 
+						true);
+
+				sslSocket.setUseClientMode(false);
+				sslSocket.setNeedClientAuth(false);
+				sslSocket.setWantClientAuth(false);
+				sslSocket.addHandshakeCompletedListener(
+						(HandshakeCompletedEvent handshakeCompletedEvent) -> {
+							try {
+								this.clientSocket = handshakeCompletedEvent.getSocket();
+								this.proxyToClientBr = this.clientSocket.getInputStream();
+								this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
+								//							this.proxyToClientBw.write("<html>oussama</html>".getBytes());
+								//							this.proxyToClientBw.flush();
+							} catch (IOException e) {
+								System.out.println("Error in handshake callback " + requestParsed.getHostname() + " : " + e);
+								this.shutdown();
+							}
+						});
+
+				sslSocket.startHandshake();
 			}
-
-			this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "Connection Established").getBytes(StandardCharsets.UTF_8));
-			this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
-
-			// wrap client socket
-			FileInputStream is = new FileInputStream(certFile);
-			KeyStore keyStore = KeyStore.getInstance("PKCS12");
-			keyStore.load(is, "secret".toCharArray());
-
-			KeyManagerFactory kmf = KeyManagerFactory.getInstance("SunX509");
-			kmf.init(keyStore, "secret".toCharArray());
-
-			SSLContext sslContext = SSLContext.getInstance("TLS");
-			sslContext.init(kmf.getKeyManagers(), null, null);
-
-			SSLSocket sslSocket = (SSLSocket) sslContext.getSocketFactory().createSocket(
-					this.clientSocket, 
-					this.clientSocket.getInetAddress().getHostAddress(), 
-					this.clientSocket.getPort(), 
-					true);
-
-			sslSocket.setUseClientMode(false);
-			sslSocket.setNeedClientAuth(false);
-			sslSocket.setWantClientAuth(false);
-			sslSocket.addHandshakeCompletedListener(
-					(HandshakeCompletedEvent handshakeCompletedEvent) -> {
-						try {
-							this.clientSocket = handshakeCompletedEvent.getSocket();
-							this.proxyToClientBr = this.clientSocket.getInputStream();
-							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
-							//							this.proxyToClientBw.write("<html>oussama</html>".getBytes());
-							//							this.proxyToClientBw.flush();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					});
-
-			sslSocket.startHandshake();
+		} catch (Exception e) {
+			System.out.println("********* DOCONNECT EXCEPTION **********: " + requestParsed.getHostname() + " : " + e);
+			this.shutdown();
 		}
 	}
 
+	public synchronized void displayInfo(HttpRequestParser requestParsed, Map<String, List<String>> responseHeaders, String responseBody) throws IOException {
+		
+		BufferedWriter writer = new BufferedWriter(new FileWriter("logs/" + requestParsed.getHostname()));
+		
+		writer.write("The request : \n");
+		writer.write(requestParsed.getRequestLine()+"\n");
+		requestParsed.getHeaders().forEach((key, value) -> {
+			try {
+				writer.write(key + " : " + value+"\n");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+		writer.write(requestParsed.getMessageBody()+"\n");
+		
+		writer.write("The response : \n");
+		responseHeaders.forEach((key, value) -> {
+			try {
+				writer.write(key + " : " + String.join(", ", value)+"\n");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		});
+		writer.write(responseBody+"\n");
+		
+		writer.flush();
+		writer.close();
+	}
+	
 	/**
 	 * Shutdown Connection
 	 */
