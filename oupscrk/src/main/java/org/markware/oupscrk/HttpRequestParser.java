@@ -47,6 +47,11 @@ public class HttpRequestParser {
      * Path
      */
     private String path;
+    
+    /**
+     * Query
+     */
+    private String query;
 
     /**
      * Port
@@ -116,14 +121,18 @@ public class HttpRequestParser {
 	 		this.httpVersion = requestLineParts[2];
 	 		
 	 		String[] pieces;
-	 		if (urlString.startsWith("https://")) {
+	 		String[] urlSplitted = urlString.split("\\?");
+	 		String authorityAndPath = urlSplitted[0];
+	 		this.query = urlSplitted.length > 1 ? urlSplitted[1] : "";
+	 		
+	 		if (authorityAndPath.startsWith("https://")) {
 	 			this.scheme = "https";
-	 			pieces = urlString.substring(8).split(":");
-	 		} else if (urlString.startsWith("http://")) {
+	 			pieces = authorityAndPath.substring(8).split(":");
+	 		} else if (authorityAndPath.startsWith("http://")) {
 	 			this.scheme = "http";
-	 			pieces = urlString.substring(7).split(":");
+	 			pieces = authorityAndPath.substring(7).split(":");
 	 		} else {
-	 			pieces = urlString.split(":");
+	 			pieces = authorityAndPath.split(":");
 	 		}
 	 		this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
 	 		
@@ -238,6 +247,10 @@ public class HttpRequestParser {
 
 	public String getScheme() {
 		return scheme;
+	}
+	
+	public String getQuery() {
+		return this.query;
 	}
 	
 	public Hashtable<String, String> getHeaders() {
