@@ -389,6 +389,18 @@ public class ConnectionHandler implements Runnable {
 							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 //							this.proxyToClientBw.write("<html>oussama</html>".getBytes());
 //							this.proxyToClientBw.flush();
+							String connType = requestParsed.getHeaderParam("Proxy-Connection", "");
+							if (! "close".equalsIgnoreCase(connType)) {
+//								byte[] bodyChunk = new byte [BUFFER_SIZE];
+//								int read = this.proxyToClientBr.read(bodyChunk, 0, BUFFER_SIZE);
+//								while ( read != -1 ) {
+//									System.out.println(new String(bodyChunk, "UTF-8"));
+//									read = this.proxyToClientBr.read(bodyChunk, 0, BUFFER_SIZE );
+//								}
+								requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
+							} else {
+								this.shutdown();
+							}
 						} catch (IOException e) {
 							System.out.println("Error in handshake callback " + requestParsed.getHostname() + " : " + e);
 							this.shutdown();

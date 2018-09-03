@@ -83,7 +83,7 @@ public class HttpRequestParser {
      */
     public void parseRequest(BufferedReader reader) throws IOException {
     	
-    	if (reader.ready()) {
+//    	if (reader.ready()) {
     		// REQUEST LINE
         	setRequestLine(reader);
 
@@ -92,7 +92,7 @@ public class HttpRequestParser {
         	
         	// BODY
         	// setBody(reader);
-    	}
+//    	}
     }
 
     /**
@@ -103,7 +103,7 @@ public class HttpRequestParser {
     private void setRequestLine(BufferedReader reader) throws IOException {
     	try {
     		String requestLine = reader.readLine();
-	        if (requestLine == null || requestLine.length() == 0) {
+ 	        if (requestLine == null || requestLine.length() == 0) {
 	            System.out.println("Invalid Request-Line: " + requestLine);
 	        }
 	        this.requestLine = requestLine;
@@ -142,7 +142,6 @@ public class HttpRequestParser {
 	 		
 			this.url = new URL(pieces[0].startsWith("https://") 
 								|| pieces[0].startsWith("http://") ? pieces[0] : this.scheme + "://" + pieces[0]);
-			
 			if (this.url == null) {
 				throw new IOException("Url Null");
 			} else {
@@ -215,6 +214,10 @@ public class HttpRequestParser {
 
     public String getHeaderParam(String headerName){
         return headers.get(headerName);
+    }
+    
+    public String getHeaderParam(String headerName, String otherwise){
+        return headers.get(headerName) != null ? headers.get(headerName) : otherwise;
     }
     
     public String getRequestType() {
