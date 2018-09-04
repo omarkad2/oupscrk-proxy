@@ -156,6 +156,7 @@ public class ConnectionHandler implements Runnable {
 			switch(requestParsed.getRequestType()) {
 			case "CONNECT":
 				doConnect(requestParsed);
+				break;
 			default:
 				doGet(requestParsed);
 				break;
@@ -398,6 +399,7 @@ public class ConnectionHandler implements Runnable {
 //									read = this.proxyToClientBr.read(bodyChunk, 0, BUFFER_SIZE );
 //								}
 								requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
+								doGet(requestParsed);
 							} else {
 								this.shutdown();
 							}

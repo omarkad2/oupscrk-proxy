@@ -92,6 +92,36 @@ public class HttpRequestParser {
         	
         	// BODY
         	// setBody(reader);
+        	
+        	if (this.path.startsWith("/")) {
+        		this.url = new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
+        	} else {
+        		String[] pieces;
+        		if (this.path.startsWith("https://")) {
+    	 			this.scheme = "https";
+    	 			pieces = this.path.substring(8).split(":");
+    	 		} else if (this.path.startsWith("http://")) {
+    	 			this.scheme = "http";
+    	 			pieces = this.path.substring(7).split(":");
+    	 		} else {
+    	 			pieces = this.path.split(":");
+    	 		}
+    	 		this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
+    	 		
+    	 		if (this.scheme == null) {
+    	 			this.scheme = this.port == 443 ? "https" : "http";
+    	 		}
+    	 		this.url = new URL(pieces[0].startsWith("https://") 
+						|| pieces[0].startsWith("http://") ? pieces[0] : this.scheme + "://" + pieces[0]);
+        	}
+        	
+			if (this.url == null) {
+				throw new IOException("Url Null");
+			} else {
+				System.out.println(this.url.toString());
+				this.hostname = this.url.getHost();
+				this.path = this.url.getPath();
+			}
 //    	}
     }
 
@@ -104,7 +134,7 @@ public class HttpRequestParser {
     	try {
     		String requestLine = reader.readLine();
  	        if (requestLine == null || requestLine.length() == 0) {
-	            System.out.println("Invalid Request-Line: " + requestLine);
+	            throw new IOException("Invalid Request-Line: " + requestLine);
 	        }
 	        this.requestLine = requestLine;
 	        
@@ -120,34 +150,12 @@ public class HttpRequestParser {
 	 		
 	 		this.httpVersion = requestLineParts[2];
 	 		
-	 		String[] pieces;
+	 		
 	 		String[] urlSplitted = urlString.split("\\?");
-	 		String authorityAndPath = urlSplitted[0];
+	 		this.path = urlSplitted[0];
 	 		this.query = urlSplitted.length > 1 ? urlSplitted[1] : "";
 	 		
-	 		if (authorityAndPath.startsWith("https://")) {
-	 			this.scheme = "https";
-	 			pieces = authorityAndPath.substring(8).split(":");
-	 		} else if (authorityAndPath.startsWith("http://")) {
-	 			this.scheme = "http";
-	 			pieces = authorityAndPath.substring(7).split(":");
-	 		} else {
-	 			pieces = authorityAndPath.split(":");
-	 		}
-	 		this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
 	 		
-	 		if (this.scheme == null) {
-	 			this.scheme = this.port == 443 ? "https" : "http";
-	 		}
-	 		
-			this.url = new URL(pieces[0].startsWith("https://") 
-								|| pieces[0].startsWith("http://") ? pieces[0] : this.scheme + "://" + pieces[0]);
-			if (this.url == null) {
-				throw new IOException("Url Null");
-			} else {
-				this.hostname = this.url.getHost();
-				this.path = this.url.getPath();
-			}
 		} catch (MalformedURLException e) {
 			e.printStackTrace();
 		}
@@ -177,7 +185,7 @@ public class HttpRequestParser {
         	return;
         }
         String headerName = header.substring(0, idx);
-        String headerValue = header.substring(idx + 1, header.length());
+        String headerValue = header.substring(idx + 1, header.length()).replaceAll("\\s","");
     	headers.put(headerName, headerValue);
     }
 	
