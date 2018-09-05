@@ -40,7 +40,7 @@
 					<archive>
 						<manifest>
 							<addClasspath>true</addClasspath>
-							<mainClass>org.markware.oupscrk.Proxy</mainClass>
+							<mainClass>org.markware.oupscrk.Intercepter</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>
