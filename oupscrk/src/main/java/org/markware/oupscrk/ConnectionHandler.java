@@ -3,13 +3,11 @@ package org.markware.oupscrk;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
@@ -18,12 +16,15 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.security.cert.CertificateEncodingException;
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import java.util.zip.DataFormatException;
 
 import javax.net.ssl.HandshakeCompletedEvent;
@@ -32,9 +33,10 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
-import org.markware.oupscrk.utils.CompressionUtils;
 import org.markware.oupscrk.utils.HttpRequest;
 import org.markware.oupscrk.utils.HttpRequestParser;
+import org.markware.oupscrk.utils.HttpResponse;
+import org.markware.oupscrk.utils.HttpResponseParser;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
@@ -155,14 +157,8 @@ public class ConnectionHandler implements Runnable {
 
 				// Set headers (filtering out proxy headers)
 				if (httpRequest.getHeaders() != null) {
-					httpRequest.getHeaders().entrySet().forEach((entry) -> {
-						if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
-							if ("Accept-Encoding".equals(entry.getKey())) {
-								conn.setRequestProperty(entry.getKey(), "gzip, deflate, identity, x-gzip");
-							} else {
-								conn.setRequestProperty(entry.getKey(), entry.getValue());
-							}
-						}
+					filterHeaders(httpRequest.getHeaders()).forEach((key, value) -> {
+						conn.setRequestProperty(key, value);
 					});
 				}
 
@@ -181,68 +177,29 @@ public class ConnectionHandler implements Runnable {
 
 				conn.connect();
 
-				// Get the response stream
-				InputStream serverToProxyStream = null;
-				int responseCode = conn.getResponseCode();
-				if (responseCode >= 400) {
-					serverToProxyStream = conn.getErrorStream();
-				} else {
-					serverToProxyStream = conn.getInputStream();
-				}
-
-				// Send response to client
-				if (serverToProxyStream != null) {
-
-					// Read body
-					String contentEncoding = conn.getContentEncoding();
-					ByteArrayOutputStream responseBuffer = new ByteArrayOutputStream();
-					byte by[] = new byte[ BUFFER_SIZE ];
-					int index = serverToProxyStream.read(by, 0, BUFFER_SIZE);
-					while ( index != -1 ) {
-						responseBuffer.write(by, 0, index);
-						index = serverToProxyStream.read( by, 0, BUFFER_SIZE );
-					}
-					responseBuffer.flush();
-
-					// Decode body, Modify response ...
-					byte[] responsePlain = CompressionUtils.decodeContentBody(responseBuffer.toByteArray(), contentEncoding);
-					String responsePlainStr = new String(responsePlain, StandardCharsets.UTF_8);
-					//					System.out.println(responsePlainStr);
-					// encode response
-					byte[] encodedResponse = CompressionUtils.encodeContentBody(responsePlain, contentEncoding);
-					ByteArrayInputStream streamToSend = new ByteArrayInputStream(encodedResponse);
-
-					// send statusLine
-					String statusLine = conn.getHeaderField(0);
-					this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
+				HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
+				
+				if (httpResponse.isNotBlank()) {
+					// Send status line
+					this.proxyToClientBw.write(String.format("%s\r\n", httpResponse.getStatusLine()).getBytes(StandardCharsets.UTF_8));
 					
 					// send headers (filtered)
-					for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
-						if (header.getKey() != null && !HEADERS_TO_REMOVE.contains(header.getKey())) {
-							if ("Accept-Encoding".equals(header.getKey())) {
-								this.proxyToClientBw.write(
-										new StringBuilder().append(header.getKey())
-										.append(": ")
-										.append("gzip, deflate, identity, x-gzip")
-										.append("\r\n")
-										.toString()
-										.getBytes(StandardCharsets.UTF_8));
-							} else {
-								this.proxyToClientBw.write(
-										new StringBuilder().append(header.getKey())
-										.append(": ")
-										.append(String.join(", ", header.getValue()))
-										.append("\r\n")
-										.toString()
-										.getBytes(StandardCharsets.UTF_8));
-							}
-						}
+					for (Entry<String, String> header : filterHeaders(httpResponse.getHeaders()).entrySet()) {
+						this.proxyToClientBw.write(
+								new StringBuilder().append(header.getKey())
+												   .append(": ")
+												   .append(header.getValue())
+												   .append("\r\n")
+												   .toString()
+												   .getBytes(StandardCharsets.UTF_8));
 					}
-					this.proxyToClientBw.write(("Content-Length: " + encodedResponse.length+"\r\n").getBytes(StandardCharsets.UTF_8));
+					
+					this.proxyToClientBw.write(("Content-Length: " + httpResponse.getEncodedResponseBody().length+"\r\n").getBytes(StandardCharsets.UTF_8));
 					
 					// end headers
 					this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
 					// Send encoded stream to client (navigator)
+					ByteArrayInputStream streamToSend = new ByteArrayInputStream(httpResponse.getEncodedResponseBody());
 					byte[] bodyChunk = new byte [BUFFER_SIZE];
 					int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
 					while ( read != -1 ) {
@@ -250,12 +207,8 @@ public class ConnectionHandler implements Runnable {
 						read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
 					}
 					this.proxyToClientBw.flush();
-					displayInfo(httpRequest, conn.getHeaderFields(), responsePlainStr);
+					displayInfo(httpRequest, conn.getHeaderFields(), httpResponse.getPlainResponseBody());
 					
-					// Close Remote Server -> Proxy Stream
-					if (serverToProxyStream != null) {
-						serverToProxyStream.close();
-					}
 				}
 			}
 		} catch(IOException | DataFormatException | CertificateEncodingException e) {
@@ -264,20 +217,15 @@ public class ConnectionHandler implements Runnable {
 			this.shutdown();
 		}
 	}
-	public String readFullyAsString(InputStream inputStream, String encoding) throws IOException {
-		return readFully(inputStream).toString(encoding);
+	
+	private Map<String, String> filterHeaders(Hashtable<String, String> headers) {
+		Entry<String, String> allowedEncodings = 
+				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "gzip, deflate, identity, x-gzip");
+		return headers.entrySet().stream().filter((header) -> !HEADERS_TO_REMOVE.contains(header.getKey()))
+									.map((header) -> "Accept-Encoding".equals(header.getKey()) ? allowedEncodings : header)
+								   .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 	}
-
-	private ByteArrayOutputStream readFully(InputStream inputStream) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		byte[] buffer = new byte[1024];
-		int length = 0;
-		while ((length = inputStream.read(buffer)) != -1) {
-			baos.write(buffer, 0, length);
-		}
-		return baos;
-	}
-
+	
 	private void sendCaCert(HttpRequest httpRequest) throws IOException, CertificateEncodingException {
 		byte[] caCertData = sslResource.getCaCert().getEncoded();
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpRequest.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
