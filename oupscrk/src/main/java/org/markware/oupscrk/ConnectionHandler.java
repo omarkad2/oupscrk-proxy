@@ -74,7 +74,7 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * Read data client sends to proxy
 	 */
-	private InputStream proxyToClientBr;
+	private BufferedReader proxyToClientBr;
 
 	/**
 	 * Send data from proxy to client
@@ -92,7 +92,7 @@ public class ConnectionHandler implements Runnable {
 		this.sslResource = sslResource;
 		try{
 			this.clientSocket.setSoTimeout(20000);
-			this.proxyToClientBr = this.clientSocket.getInputStream();
+			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
 			this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 		} 
 		catch (IOException e) {
@@ -108,7 +108,7 @@ public class ConnectionHandler implements Runnable {
 		// 1 - Parse request from Client
 		HttpRequest requestParsed = new HttpRequest();
 		try {
-			requestParsed = HttpRequestParser.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
+			requestParsed = HttpRequestParser.parseRequest(this.proxyToClientBr);
 		} catch (IOException e) {
 			System.out.println("=> Error parsing request : " + e.getMessage());
 			this.shutdown();
@@ -350,11 +350,11 @@ public class ConnectionHandler implements Runnable {
 					(HandshakeCompletedEvent handshakeCompletedEvent) -> {
 						try {
 							this.clientSocket = handshakeCompletedEvent.getSocket();
-							this.proxyToClientBr = this.clientSocket.getInputStream();
+							this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
 							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 							String connType = requestParsed.getHeaderParam("Proxy-Connection", "");
 							if (! "close".equalsIgnoreCase(connType)) {
-								doGet(HttpRequestParser.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr))));
+								doGet(HttpRequestParser.parseRequest(this.proxyToClientBr));
 							} else {
 								this.shutdown();
 							}
