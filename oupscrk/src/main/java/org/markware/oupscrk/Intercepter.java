@@ -1,6 +1,5 @@
 package org.markware.oupscrk;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -9,15 +8,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
-import java.security.Key;
-import java.security.KeyFactory;
 import java.security.PrivateKey;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Arrays;
-import java.util.Base64;
 
 /**
  * Main thread
@@ -94,47 +86,30 @@ public class Intercepter {
 	 * @param port
 	 */
 	public Intercepter(int port) {
-		File file;
 		try {
 			this.proxySocket = new ServerSocket(port);
 			this.running = true;
 			ClassLoader classLoader = getClass().getClassLoader();
 			/* CA KEY */
-			file = new File(classLoader.getResource(CA_FOLDER + "ca.key").getFile());
-			this.caKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
+			this.caKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(CA_FOLDER + "ca.key").getFile()));
 			
-			/* Int KEY */
-			file = new File(classLoader.getResource(CA_FOLDER + "int.key").getFile());
-			this.intKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
+			/* INT KEY */
+			this.intKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(CA_FOLDER + "int.key").getFile()));
 			
 			/* CA CERT */
-			file = new File(classLoader.getResource(CA_FOLDER + "ca.crt").getFile());
-			String caCertStr = new String(Files.readAllBytes(file.toPath()));
-			CertificateFactory cf = CertificateFactory.getInstance("X.509");
-			this.caCert = (X509Certificate) cf.generateCertificate(
-					new ByteArrayInputStream(Base64.getDecoder().decode(
-							caCertStr.replace("-----BEGIN CERTIFICATE-----", "")
-									 .replace("-----END CERTIFICATE-----", "")
-									 .replaceAll("\\n",  "")
-									)));
+			this.caCert = SecurityUtils.loadX509Certificate(new File(classLoader.getResource(CA_FOLDER + "ca.crt").getFile()));
 			
 			/* INT CERT */
-			file = new File(classLoader.getResource(CA_FOLDER + "int.crt").getFile());
-			String intCertStr = new String(Files.readAllBytes(file.toPath()));
-			this.intCert = (X509Certificate) cf.generateCertificate(
-					new ByteArrayInputStream(Base64.getDecoder().decode(
-							intCertStr.replace("-----BEGIN CERTIFICATE-----", "")
-									 .replace("-----END CERTIFICATE-----", "")
-									 .replaceAll("\\n",  "")
-									)));
+			this.intCert = SecurityUtils.loadX509Certificate(new File(classLoader.getResource(CA_FOLDER + "int.crt").getFile()));
 			
 			/* CERT KEY */
-			file = new File(classLoader.getResource(CA_FOLDER + "cert.key").getFile());
-			this.certKey = loadPrivateKey(new String(Files.readAllBytes(file.toPath())));
+			this.certKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(CA_FOLDER + "cert.key").getFile()));
+			
 			/* CERTS FOLDER */
 			this.certsFolder = Files.exists(Paths.get("certs")) ? Paths.get("certs") : Files.createDirectory(Paths.get("certs"));
+			
 		} catch (IOException | GeneralSecurityException e) {
-			System.out.println("Couldn't create proxy socket");
+			System.out.println("Couldn't load Keys/Certificate from filesystem");
 			e.printStackTrace();
 		}
 	}
@@ -152,29 +127,6 @@ public class Intercepter {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public static Key loadPublicKey(String stored) throws GeneralSecurityException, IOException {
-		byte[] data = Base64.getDecoder().decode((stored.getBytes()));
-		X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
-		KeyFactory fact = KeyFactory.getInstance("RSA");
-		return fact.generatePublic(spec);
-
-	}
-
-
-	public static PrivateKey loadPrivateKey(String key64) throws GeneralSecurityException, IOException {
-		byte[] clear = Base64.getDecoder().decode(
-				key64.replace("-----BEGIN PRIVATE KEY-----", "")
-					 .replace("-----END PRIVATE KEY-----", "")
-					 .replaceAll("\\n",  "")
-					 .getBytes());
-		PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(clear);
-		KeyFactory fact = KeyFactory.getInstance("RSA");
-		PrivateKey priv = fact.generatePrivate(keySpec);
-		Arrays.fill(clear, (byte) 0);
-		return priv;
-
 	}
 
 }

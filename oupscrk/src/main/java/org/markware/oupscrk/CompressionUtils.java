@@ -91,7 +91,7 @@ public class CompressionUtils {
 		} else if ("deflate".equals(encodingAlg)) {
 			result = zlibDecompress(encodedBody);
 		} else {
-			throw new RuntimeException("Encoding algorithm unknown" + encodingAlg);
+			throw new RuntimeException("Encoding algorithm unknown : " + encodingAlg);
 		}
 		return result;
 	}

@@ -7,7 +7,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,8 +47,6 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private ReentrantLock fileLock = new ReentrantLock();
 
-	private ReentrantLock displayLock = new ReentrantLock();
-	
 	/**
 	 * Client socket
 	 */
@@ -191,7 +188,11 @@ public class ConnectionHandler implements Runnable {
 				if (requestParsed.getHeaders() != null) {
 					requestParsed.getHeaders().entrySet().forEach((entry) -> {
 						if (!HEADERS_TO_REMOVE.contains(entry.getKey())) {
-							conn.setRequestProperty(entry.getKey(), entry.getValue());
+							if ("Accept-Encoding".equals(entry.getKey())) {
+								conn.setRequestProperty(entry.getKey(), "gzip, deflate, identity, x-gzip");
+							} else {
+								conn.setRequestProperty(entry.getKey(), entry.getValue());
+							}
 						}
 					});
 				}
@@ -244,47 +245,43 @@ public class ConnectionHandler implements Runnable {
 					ByteArrayInputStream streamToSend = new ByteArrayInputStream(encodedResponse);
 
 					// send statusLine
-					FileOutputStream writer = new FileOutputStream("logs/test");
 					String statusLine = conn.getHeaderField(0);
 					this.proxyToClientBw.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
-					writer.write(String.format("%s\r\n", statusLine).getBytes(StandardCharsets.UTF_8));
-					
 					
 					// send headers (filtered)
 					for(Entry<String, List<String>> header : conn.getHeaderFields().entrySet()) {
 						if (header.getKey() != null && !HEADERS_TO_REMOVE.contains(header.getKey())) {
-							this.proxyToClientBw.write(
-									new StringBuilder().append(header.getKey())
-									.append(": ")
-									.append(String.join(", ", header.getValue()))
-									.append("\r\n")
-									.toString()
-									.getBytes(StandardCharsets.UTF_8));
-							
-							writer.write(new StringBuilder().append(header.getKey())
-									.append(": ")
-									.append(String.join(", ", header.getValue()))
-									.append("\r\n")
-									.toString()
-									.getBytes(StandardCharsets.UTF_8));
+							if ("Accept-Encoding".equals(header.getKey())) {
+								this.proxyToClientBw.write(
+										new StringBuilder().append(header.getKey())
+										.append(": ")
+										.append("gzip, deflate, identity, x-gzip")
+										.append("\r\n")
+										.toString()
+										.getBytes(StandardCharsets.UTF_8));
+							} else {
+								this.proxyToClientBw.write(
+										new StringBuilder().append(header.getKey())
+										.append(": ")
+										.append(String.join(", ", header.getValue()))
+										.append("\r\n")
+										.toString()
+										.getBytes(StandardCharsets.UTF_8));
+							}
 						}
 					}
 					this.proxyToClientBw.write(("Content-Length: " + encodedResponse.length+"\r\n").getBytes(StandardCharsets.UTF_8));
-					writer.write(("Content-Length: " + encodedResponse.length+"\r\n").getBytes(StandardCharsets.UTF_8));
 					
 					// end headers
 					this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
-					writer.write("\r\n".getBytes(StandardCharsets.UTF_8));
 					// Send encoded stream to client (navigator)
 					byte[] bodyChunk = new byte [BUFFER_SIZE];
 					int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
 					while ( read != -1 ) {
 						this.proxyToClientBw.write(bodyChunk, 0, read);
-						writer.write(bodyChunk, 0, read);
 						read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
 					}
 					this.proxyToClientBw.flush();
-					writer.flush();
 					displayInfo(requestParsed, conn.getHeaderFields(), responsePlainStr);
 					
 					// Close Remote Server -> Proxy Stream
@@ -294,7 +291,7 @@ public class ConnectionHandler implements Runnable {
 				}
 			}
 		} catch(IOException | DataFormatException | CertificateEncodingException e) {
-			System.out.println("********* DOGET EXCEPTION **********: " + requestParsed.getHostname() + " : " + e);
+			System.out.println("*** DOGET EXCEPTION ***: " + requestParsed.getHostname() + " : " + e);
 		} finally {
 			this.shutdown();
 		}
@@ -341,7 +338,7 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	/**
-	 * Intercept HTTPS trafic (SSL handshake client <-> proxy) ------> In Progress
+	 * Intercept HTTPS trafic (SSL handshake client <-> proxy)
 	 * @param requestParsed
 	 * @throws Exception 
 	 */
@@ -388,16 +385,8 @@ public class ConnectionHandler implements Runnable {
 							this.clientSocket = handshakeCompletedEvent.getSocket();
 							this.proxyToClientBr = this.clientSocket.getInputStream();
 							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
-//							this.proxyToClientBw.write("<html>oussama</html>".getBytes());
-//							this.proxyToClientBw.flush();
 							String connType = requestParsed.getHeaderParam("Proxy-Connection", "");
 							if (! "close".equalsIgnoreCase(connType)) {
-//								byte[] bodyChunk = new byte [BUFFER_SIZE];
-//								int read = this.proxyToClientBr.read(bodyChunk, 0, BUFFER_SIZE);
-//								while ( read != -1 ) {
-//									System.out.println(new String(bodyChunk, "UTF-8"));
-//									read = this.proxyToClientBr.read(bodyChunk, 0, BUFFER_SIZE );
-//								}
 								requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 								doGet(requestParsed);
 							} else {
@@ -411,7 +400,7 @@ public class ConnectionHandler implements Runnable {
 
 			sslSocket.startHandshake();
 		} catch (Exception e) {
-			System.out.println("********* DOCONNECT EXCEPTION **********: " + requestParsed.getHostname() + " : " + e);
+			System.out.println("* DOCONNECT EXCEPTION *: " + requestParsed.getHostname() + " : " + e);
 			this.shutdown();
 		}
 	}
