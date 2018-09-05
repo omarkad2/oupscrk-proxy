@@ -33,6 +33,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
 import org.markware.oupscrk.utils.CompressionUtils;
+import org.markware.oupscrk.utils.HttpRequest;
+import org.markware.oupscrk.utils.HttpRequestParser;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
@@ -104,9 +106,9 @@ public class ConnectionHandler implements Runnable {
 	@Override
 	public void run() {
 		// 1 - Parse request from Client
-		HttpRequestParser requestParsed = new HttpRequestParser();
+		HttpRequest requestParsed = new HttpRequest();
 		try {
-			requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
+			requestParsed = HttpRequestParser.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
 		} catch (IOException e) {
 			System.out.println("=> Error parsing request : " + e.getMessage());
 			this.shutdown();
@@ -130,7 +132,7 @@ public class ConnectionHandler implements Runnable {
 	 * Get method handler
 	 * @param requestParsed
 	 */
-	private void doGet(HttpRequestParser requestParsed) {
+	private void doGet(HttpRequest requestParsed) {
 		try {
 			URL url = requestParsed.getUrl();
 			String protocolHttp = requestParsed.getScheme();
@@ -275,7 +277,7 @@ public class ConnectionHandler implements Runnable {
 		return baos;
 	}
 
-	private void sendCaCert(HttpRequestParser requestParsed) throws IOException, CertificateEncodingException {
+	private void sendCaCert(HttpRequest requestParsed) throws IOException, CertificateEncodingException {
 		byte[] caCertData = sslResource.getCaCert().getEncoded();
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
 		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Type", "application/x-x509-ca-cert").getBytes(StandardCharsets.UTF_8));
@@ -293,7 +295,7 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed Client HTTP request
 	 * @throws Exception 
 	 */
-	private void doConnect(HttpRequestParser requestParsed) {
+	private void doConnect(HttpRequest requestParsed) {
 		if (sslResource.isAllSet()) {
 			connectionIntercept(requestParsed);
 		} else {
@@ -307,7 +309,7 @@ public class ConnectionHandler implements Runnable {
 	 * @param requestParsed
 	 * @throws Exception 
 	 */
-	private void connectionIntercept(HttpRequestParser requestParsed) {
+	private void connectionIntercept(HttpRequest requestParsed) {
 		String hostname = requestParsed.getUrl().getHost();
 		String certFile = String.format("%s/%s.p12", sslResource.getCertsFolder().toAbsolutePath().toString(), hostname);
 
@@ -352,8 +354,7 @@ public class ConnectionHandler implements Runnable {
 							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 							String connType = requestParsed.getHeaderParam("Proxy-Connection", "");
 							if (! "close".equalsIgnoreCase(connType)) {
-								requestParsed.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr)));
-								doGet(requestParsed);
+								doGet(HttpRequestParser.parseRequest(new BufferedReader(new InputStreamReader(this.proxyToClientBr))));
 							} else {
 								this.shutdown();
 							}
@@ -370,7 +371,7 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 
-	public synchronized void displayInfo(HttpRequestParser requestParsed, Map<String, List<String>> responseHeaders, String responseBody) throws IOException {
+	public synchronized void displayInfo(HttpRequest requestParsed, Map<String, List<String>> responseHeaders, String responseBody) throws IOException {
 		BufferedWriter writer = new BufferedWriter(new FileWriter("logs/" + requestParsed.getHostname()));
 		
 		writer.write("The request : \n");
