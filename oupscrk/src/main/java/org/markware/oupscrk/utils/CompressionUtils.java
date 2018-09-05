@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

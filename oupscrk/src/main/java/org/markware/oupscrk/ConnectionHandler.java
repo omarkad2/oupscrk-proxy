@@ -16,11 +16,8 @@ import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.security.KeyStore;
-import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +32,9 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
+import org.markware.oupscrk.utils.CompressionUtils;
+import org.markware.oupscrk.utils.SecurityUtils;
+
 /**
  * Connection intercepter
  * @author citestra
@@ -42,6 +42,18 @@ import javax.net.ssl.SSLSocket;
  */
 public class ConnectionHandler implements Runnable {
 
+	/**
+	 * Headers to remove
+	 */
+	private static final List<String> HEADERS_TO_REMOVE = Collections.unmodifiableList(
+			Arrays.asList("Connection", "Proxy-Authenticate", "Keep-Alive", "Content-Length",
+					"Proxy-Authorization", "te", "Trailers", "Transfer-Encoding", "Upgrade"));
+
+	/**
+	 * Buffer Size
+	 */
+	private static final int BUFFER_SIZE = 65536; // 32768 or 65536
+	
 	/**
 	 * Lock
 	 */
@@ -55,32 +67,7 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * CA KEY
 	 */
-	private PrivateKey caKey;
-
-	/**
-	 * Intermediate Key
-	 */
-	private PrivateKey intKey;
-
-	/**
-	 * CA Cert
-	 */
-	private X509Certificate caCert;
-
-	/**
-	 * Intermediate Cert
-	 */
-	private X509Certificate intCert;
-
-	/**
-	 * CERT KEY
-	 */
-	private PrivateKey certKey;
-
-	/**
-	 * CERTS FOLDER
-	 */
-	private Path certsFolder;
+	private SSLResource sslResource;
 
 	/**
 	 * Read data client sends to proxy
@@ -93,36 +80,14 @@ public class ConnectionHandler implements Runnable {
 	private DataOutputStream proxyToClientBw;
 
 	/**
-	 * Headers to remove
-	 */
-	private static final List<String> HEADERS_TO_REMOVE = Collections.unmodifiableList(
-			Arrays.asList("Connection", "Proxy-Authenticate", "Keep-Alive", "Content-Length",
-					"Proxy-Authorization", "te", "Trailers", "Transfer-Encoding", "Upgrade"));
-
-	/**
-	 * Buffer Size
-	 */
-	private static final int BUFFER_SIZE = 65536; // 32768 or 65536
-
-	/**
 	 * Constructor
 	 * @param clientSocket
 	 */
 	public ConnectionHandler(
 			Socket clientSocket, 
-			PrivateKey caKey, 
-			PrivateKey intKey, 
-			X509Certificate caCert, 
-			X509Certificate intCert, 
-			PrivateKey certKey, 
-			Path certsFolder) {
+			SSLResource sslResource) {
 		this.clientSocket = clientSocket;
-		this.caKey = caKey;
-		this.intKey = intKey;
-		this.caCert = caCert;
-		this.intCert = intCert;
-		this.certKey = certKey;
-		this.certsFolder = certsFolder;
+		this.sslResource = sslResource;
 		try{
 			this.clientSocket.setSoTimeout(20000);
 			this.proxyToClientBr = this.clientSocket.getInputStream();
@@ -311,7 +276,7 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	private void sendCaCert(HttpRequestParser requestParsed) throws IOException, CertificateEncodingException {
-		byte[] caCertData = this.caCert.getEncoded();
+		byte[] caCertData = sslResource.getCaCert().getEncoded();
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", requestParsed.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
 		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Type", "application/x-x509-ca-cert").getBytes(StandardCharsets.UTF_8));
 		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Length", caCertData.length).getBytes(StandardCharsets.UTF_8));
@@ -329,7 +294,7 @@ public class ConnectionHandler implements Runnable {
 	 * @throws Exception 
 	 */
 	private void doConnect(HttpRequestParser requestParsed) {
-		if (this.caKey != null && this.caCert != null && this.certKey != null && this.certsFolder != null) {
+		if (sslResource.isAllSet()) {
 			connectionIntercept(requestParsed);
 		} else {
 			System.out.println("CA resources missing -> aborting mission !");
@@ -344,13 +309,13 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private void connectionIntercept(HttpRequestParser requestParsed) {
 		String hostname = requestParsed.getUrl().getHost();
-		String certFile = String.format("%s/%s.p12", this.certsFolder.toAbsolutePath().toString(), hostname);
+		String certFile = String.format("%s/%s.p12", sslResource.getCertsFolder().toAbsolutePath().toString(), hostname);
 
 		try {
 			if (!new File(certFile).exists()) {
 				fileLock.lock();
 				try {
-					SecurityUtils.createHostCert(hostname, certFile, this.certKey, this.caKey, this.intKey, this.caCert, this.intCert);
+					SecurityUtils.createHostCert(hostname, certFile, sslResource);
 				} finally {
 					fileLock.unlock();
 				}

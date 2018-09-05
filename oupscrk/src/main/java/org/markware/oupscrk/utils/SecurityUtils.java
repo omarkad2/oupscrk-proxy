@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -39,22 +39,19 @@ import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.markware.oupscrk.SSLResource;
 
 public class SecurityUtils {
 
 	public static void createHostCert(
 			String hostname,
 			String certFile,
-			PrivateKey certPrivateKey,
-			PrivateKey caPrivateKey,
-			PrivateKey intPrivateKey,
-			X509Certificate caCert,
-			X509Certificate intCert) throws Exception {
+			SSLResource sslResource) throws Exception {
 
 		Security.addProvider(new BouncyCastleProvider());
 
 		// Get public key from private key
-		RSAPrivateCrtKey privk = (RSAPrivateCrtKey)certPrivateKey;
+		RSAPrivateCrtKey privk = (RSAPrivateCrtKey)sslResource.getCertKey();
 		RSAPublicKeySpec publicKeySpec = new java.security.spec.RSAPublicKeySpec(privk.getModulus(), privk.getPublicExponent());
 		KeyFactory keyFactory = KeyFactory.getInstance("RSA");
 		PublicKey certPublicKey = keyFactory.generatePublic(publicKeySpec);
@@ -65,7 +62,7 @@ public class SecurityUtils {
 		nameBuilder.addRDN(BCStyle.CN, hostname);
 		
 		// create the certificate - version 3
-		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(intCert, new BigInteger(32, new SecureRandom()),
+		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(sslResource.getIntCert(), new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
 				nameBuilder.build(), certPublicKey);
 
@@ -80,7 +77,7 @@ public class SecurityUtils {
 		v3Bldr.addExtension(
 				Extension.authorityKeyIdentifier,
 				false,
-				extUtils.createAuthorityKeyIdentifier(intCert));
+				extUtils.createAuthorityKeyIdentifier(sslResource.getIntCert()));
 
 		ASN1Encodable[] subjectAlternativeNames = new ASN1Encodable[]
 			    {
@@ -92,22 +89,22 @@ public class SecurityUtils {
 				false, 
 				new DERSequence(subjectAlternativeNames));
 
-		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(intPrivateKey));
+		X509CertificateHolder certHldr = v3Bldr.build(new JcaContentSignerBuilder("SHA256WithRSA").setProvider("BC").build(sslResource.getIntKey()));
 
 		X509Certificate cert = new JcaX509CertificateConverter().setProvider("BC").getCertificate(certHldr);
 
 		cert.checkValidity(new Date());
 
-		cert.verify(intCert.getPublicKey());
+		cert.verify(sslResource.getIntCert().getPublicKey());
 
 		Certificate[] chain = new Certificate[3];
-		chain[2] = (Certificate) caCert;
-		chain[1] = (Certificate) intCert;
+		chain[2] = (Certificate) sslResource.getCaCert();
+		chain[1] = (Certificate) sslResource.getIntCert();
 		chain[0] = (Certificate) cert;
 
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");
 		store.load(null, null);
-		store.setKeyEntry(hostname, certPrivateKey, null, chain);
+		store.setKeyEntry(hostname, sslResource.getCertKey(), null, chain);
 		FileOutputStream fOut = new FileOutputStream(certFile);
 		store.store(fOut, "secret".toCharArray());
 		fOut.close();
