@@ -103,18 +103,18 @@ public class HttpRequest {
     }
     
     public void interpretRawUri() throws IOException {
-    	if (this.rawUri.startsWith("/")) {
+    	if (this.path.startsWith("/")) {
 			this.url = new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
 		} else {
 			String[] pieces;
-			if (this.rawUri.startsWith("https://")) {
+			if (this.path.startsWith("https://")) {
 				this.scheme = "https";
-				pieces = this.rawUri.substring(8).split(":");
-			} else if (this.rawUri.startsWith("http://")) {
+				pieces = this.path.substring(8).split(":");
+			} else if (this.path.startsWith("http://")) {
 				this.scheme = "http";
-				pieces = this.rawUri.substring(7).split(":");
+				pieces = this.path.substring(7).split(":");
 			} else {
-				pieces = this.rawUri.split(":");
+				pieces = this.path.split(":");
 			}
 			this.port = pieces.length>1 ? Integer.valueOf(pieces[1]) : 80;
 
@@ -129,7 +129,6 @@ public class HttpRequest {
 			throw new IOException("Url Null");
 		} else {
 			this.hostname = this.url.getHost();
-			this.path = this.url.getPath();
 		}
     }
     
