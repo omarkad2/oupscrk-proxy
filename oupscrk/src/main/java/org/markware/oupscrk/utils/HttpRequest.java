@@ -104,7 +104,9 @@ public class HttpRequest {
     
     public void interpretRawUri() throws IOException {
     	if (this.path.startsWith("/")) {
-			this.url = new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
+			this.url = this.query != null && !this.query.isEmpty() ? 
+					new URL(String.format("https://%s%s?%s", getHeaderParam("Host"), this.path, this.query)) :
+					new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
 		} else {
 			String[] pieces;
 			if (this.path.startsWith("https://")) {
