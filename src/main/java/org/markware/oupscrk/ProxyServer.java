@@ -17,7 +17,7 @@ public class ProxyServer {
 	 * Listen to client connections
 	 * @throws IOException 
 	 */
-	public static void listen(int port, SSLResource sslResource) {
+	public static void listen(int port, SSLConfig sslResource) {
 		try {
 			proxySocket = new ServerSocket(port);
 			boolean running = true;

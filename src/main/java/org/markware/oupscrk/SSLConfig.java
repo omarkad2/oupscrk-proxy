@@ -16,7 +16,7 @@ import org.markware.oupscrk.utils.SecurityUtils;
  * @author omarkad
  *
  */
-public class SSLResource {
+public class SSLConfig {
 
 	/**
 	 * CA key
@@ -52,7 +52,7 @@ public class SSLResource {
 	 * Constructor
 	 * @param port
 	 */
-	public SSLResource(String rootFolder) {
+	public SSLConfig(String rootFolder) {
 		try {
 			ClassLoader classLoader = getClass().getClassLoader();
 			/* CA KEY */

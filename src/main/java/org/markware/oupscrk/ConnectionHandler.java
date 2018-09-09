@@ -71,7 +71,7 @@ public class ConnectionHandler implements Runnable {
 	/**
 	 * SSL resources
 	 */
-	private SSLResource sslResource;
+	private SSLConfig sslResource;
 
 	/**
 	 * Read data client sends to proxy
@@ -89,7 +89,7 @@ public class ConnectionHandler implements Runnable {
 	 */
 	public ConnectionHandler(
 			Socket clientSocket, 
-			SSLResource sslResource) {
+			SSLConfig sslResource) {
 		this.clientSocket = clientSocket;
 		this.sslResource = sslResource;
 		try{

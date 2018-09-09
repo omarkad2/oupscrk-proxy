@@ -39,14 +39,14 @@ import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.markware.oupscrk.SSLResource;
+import org.markware.oupscrk.SSLConfig;
 
 public class SecurityUtils {
 
 	public static void createHostCert(
 			String hostname,
 			String certFile,
-			SSLResource sslResource) throws Exception {
+			SSLConfig sslResource) throws Exception {
 
 		Security.addProvider(new BouncyCastleProvider());
 
