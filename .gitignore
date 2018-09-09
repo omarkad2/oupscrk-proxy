@@ -30,5 +30,5 @@ local.properties
 .idea/
 /.recommenders/
 
-/oupscrk/certs/*
-/oupscrk/logs/*
+certs/*
+logs/*
