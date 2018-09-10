@@ -10,7 +10,7 @@ public class Oupscrk {
 	/**
 	 * CA resources
 	 */
-	private final static String CA_FOLDER = "CA/";
+	private final static String CA_FOLDER = "/CA/";
 
 	/**
 	 * Main method

@@ -1,6 +1,5 @@
 package org.markware.oupscrk;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,21 +53,20 @@ public class SSLConfig {
 	 */
 	public SSLConfig(String rootFolder) {
 		try {
-			ClassLoader classLoader = getClass().getClassLoader();
 			/* CA KEY */
-			this.caKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(rootFolder + "ca.key").getFile()));
+			this.caKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "ca.key"));
 			
 			/* INT KEY */
-			this.intKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(rootFolder + "int.key").getFile()));
+			this.intKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "int.key"));
 			
 			/* CA CERT */
-			this.caCert = SecurityUtils.loadX509Certificate(new File(classLoader.getResource(rootFolder + "ca.crt").getFile()));
+			this.caCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "ca.crt"));
 			
 			/* INT CERT */
-			this.intCert = SecurityUtils.loadX509Certificate(new File(classLoader.getResource(rootFolder + "int.crt").getFile()));
+			this.intCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "int.crt"));
 			
 			/* CERT KEY */
-			this.certKey = SecurityUtils.loadPrivateKey(new File(classLoader.getResource(rootFolder + "cert.key").getFile()));
+			this.certKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "cert.key"));
 			
 			/* CERTS FOLDER */
 			this.certsFolder = Files.exists(Paths.get("certs")) ? Paths.get("certs") : Files.createDirectory(Paths.get("certs"));

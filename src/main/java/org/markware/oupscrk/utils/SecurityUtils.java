@@ -1,15 +1,19 @@
 package org.markware.oupscrk.utils;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyFactory;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -19,12 +23,14 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.DERSequence;
@@ -155,6 +161,33 @@ public class SecurityUtils {
 	 */
 	public static X509Certificate loadX509Certificate(File certFile) throws CertificateException, IOException {
 		String certStr = new String(Files.readAllBytes(certFile.toPath()));
+		CertificateFactory cf = CertificateFactory.getInstance("X.509");
+		return (X509Certificate) cf.generateCertificate(
+				new ByteArrayInputStream(Base64.getDecoder().decode(
+											certStr.replace("-----BEGIN CERTIFICATE-----", "")
+												   .replace("-----END CERTIFICATE-----", "")
+												   .replaceAll("\\n",  "")
+				)));
+	}
+
+	public static PrivateKey loadPrivateKey(InputStream resourceAsStream) throws NoSuchAlgorithmException, InvalidKeySpecException {
+		String privKeyStr = new BufferedReader(new InputStreamReader(resourceAsStream))
+				  .lines().collect(Collectors.joining("\n"));
+		byte[] clear = Base64.getDecoder().decode(
+				privKeyStr.replace("-----BEGIN PRIVATE KEY-----", "")
+						  .replace("-----END PRIVATE KEY-----", "")
+						  .replaceAll("\\n",  "")
+						  .getBytes());
+		PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(clear);
+		KeyFactory fact = KeyFactory.getInstance("RSA");
+		PrivateKey priv = fact.generatePrivate(keySpec);
+		Arrays.fill(clear, (byte) 0);
+		return priv;
+	}
+
+	public static X509Certificate loadX509Certificate(InputStream resourceAsStream) throws CertificateException {
+		String certStr = new BufferedReader(new InputStreamReader(resourceAsStream))
+				  .lines().collect(Collectors.joining("\n"));
 		CertificateFactory cf = CertificateFactory.getInstance("X.509");
 		return (X509Certificate) cf.generateCertificate(
 				new ByteArrayInputStream(Base64.getDecoder().decode(
