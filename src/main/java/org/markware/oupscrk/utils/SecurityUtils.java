@@ -111,9 +111,13 @@ public class SecurityUtils {
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");
 		store.load(null, null);
 		store.setKeyEntry(hostname, sslResource.getCertKey(), null, chain);
-		FileOutputStream fOut = new FileOutputStream(certFile);
-		store.store(fOut, "secret".toCharArray());
-		fOut.close();
+		try (FileOutputStream fOut = new FileOutputStream(certFile)) {
+			store.store(fOut, "secret".toCharArray());
+			fOut.close();
+		} catch(Exception e) {
+			System.out.println(e.getMessage());
+		}
+		
 	}
 	
 	/**

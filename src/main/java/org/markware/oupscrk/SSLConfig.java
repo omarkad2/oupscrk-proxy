@@ -57,13 +57,13 @@ public class SSLConfig {
 			this.caKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "ca.key"));
 			
 			/* INT KEY */
-			this.intKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "int.key"));
+//			this.intKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "int.key"));
 			
 			/* CA CERT */
 			this.caCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "ca.crt"));
 			
 			/* INT CERT */
-			this.intCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "int.crt"));
+//			this.intCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "int.crt"));
 			
 			/* CERT KEY */
 			this.certKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "cert.key"));
