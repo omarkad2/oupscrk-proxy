@@ -28,9 +28,11 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 		OutputStreamWriter out = null;
 		try {
 			out = new OutputStreamWriter(this.expositionSocket.getOutputStream(), StandardCharsets.UTF_8);
-			out.write(new JSONObject(httpResponse).toString());
-			out.write("\r\n");
-			out.write(new JSONObject(httpResponse).toString());
+			JSONObject combined = new JSONObject();
+			combined.put("request", new JSONObject(httpRequest));
+			combined.put("response", new JSONObject(httpResponse));
+			out.write(combined.toString());
+			out.flush();
 		} finally {
 			if (out != null) {
 				out.close();

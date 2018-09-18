@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import org.markware.oupscrk.ui.impl.LogFileExpositionStrategy;
+import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
 
 /**
  * Main thread
@@ -26,7 +26,7 @@ public class ProxyServer {
 			while(running) {
 				try {
 					Socket clientSocket = proxySocket.accept();
-					Thread t = new Thread(new ConnectionHandler(clientSocket, sslResource, new LogFileExpositionStrategy()));
+					Thread t = new Thread(new ConnectionHandler(clientSocket, sslResource, new TCPClientExpositionStartegy("127.0.0.1", 10001)));
 					t.start();
 				} catch (IOException e) {
 					e.printStackTrace();
