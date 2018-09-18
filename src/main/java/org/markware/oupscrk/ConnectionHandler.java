@@ -1,12 +1,10 @@
 package org.markware.oupscrk;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.ByteArrayInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -33,6 +31,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
+import org.markware.oupscrk.ui.ExpositionStrategy;
 import org.markware.oupscrk.utils.HttpRequest;
 import org.markware.oupscrk.utils.HttpRequestParser;
 import org.markware.oupscrk.utils.HttpResponse;
@@ -84,14 +83,21 @@ public class ConnectionHandler implements Runnable {
 	private DataOutputStream proxyToClientBw;
 
 	/**
+	 * Exposition Strategy
+	 */
+	private ExpositionStrategy expositionStrategy;
+	
+	/**
 	 * Constructor
 	 * @param clientSocket
 	 */
 	public ConnectionHandler(
 			Socket clientSocket, 
-			SSLConfig sslResource) {
+			SSLConfig sslResource,
+			ExpositionStrategy expositionStrategy) {
 		this.clientSocket = clientSocket;
 		this.sslResource = sslResource;
+		this.expositionStrategy = expositionStrategy;
 		try{
 			this.clientSocket.setSoTimeout(20000);
 			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
@@ -207,7 +213,7 @@ public class ConnectionHandler implements Runnable {
 						read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
 					}
 					this.proxyToClientBw.flush();
-					displayInfo(httpRequest, conn.getHeaderFields(), httpResponse.getPlainResponseBody());
+					displayInfo(httpRequest, httpResponse);
 					
 				}
 			}
@@ -320,32 +326,8 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 
-	public synchronized void displayInfo(HttpRequest httpRequest, Map<String, List<String>> responseHeaders, String responseBody) throws IOException {
-		BufferedWriter writer = new BufferedWriter(new FileWriter("logs/" + httpRequest.getHostname()));
-		
-		writer.write("The request : \n");
-		writer.write(httpRequest.getRequestLine()+"\n");
-		httpRequest.getHeaders().forEach((key, value) -> {
-			try {
-				writer.write(key + " : " + value+"\n");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
-		writer.write(httpRequest.getMessageBody()+"\n");
-		
-		writer.write("The response : \n");
-		responseHeaders.forEach((key, value) -> {
-			try {
-				writer.write(key + " : " + String.join(", ", value)+"\n");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		});
-		writer.write(responseBody+"\n");
-		
-		writer.flush();
-		writer.close();
+	public synchronized void displayInfo(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException {
+		this.expositionStrategy.exposeExchange(httpRequest, httpResponse);
 	}
 	
 	/**

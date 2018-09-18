@@ -52,6 +52,7 @@ public class HttpResponse {
 		return this.statusLine != null && !this.statusLine.isEmpty() && this.headers!= null && !this.headers.isEmpty();
 	}
 	
+	// ******************************* GETTERS / SETTERS ******************************************
 	public String getStatusLine() {
 		return statusLine;
 	}

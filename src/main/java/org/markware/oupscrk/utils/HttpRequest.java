@@ -133,7 +133,7 @@ public class HttpRequest {
 			this.hostname = this.url.getHost();
 		}
     }
-    
+
     // ******************************* GETTERS ******************************************
     public String getRequestLine() {
         return requestLine;
