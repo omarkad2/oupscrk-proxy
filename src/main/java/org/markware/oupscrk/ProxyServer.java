@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
+import org.markware.oupscrk.ui.impl.LogFileExpositionStrategy;
 
 /**
  * Main thread
@@ -13,28 +13,65 @@ import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
  */
 public class ProxyServer {
 
-	private static ServerSocket proxySocket;
+	private ServerSocket proxySocket;
+
+	private int port;
+
+	private boolean proxyOn;
+
+	private SSLConfig sslResource;
+
+	public ProxyServer(int port, SSLConfig sslResource) throws IOException {
+		this.proxySocket = new ServerSocket(port);
+		this.sslResource = sslResource;
+	}
 
 	/**
 	 * Listen to client connections
 	 * @throws IOException 
 	 */
-	public static void listen(int port, SSLConfig sslResource) {
-		try {
-			proxySocket = new ServerSocket(port);
-			boolean running = true;
-			while(running) {
-				try {
-					Socket clientSocket = proxySocket.accept();
-					Thread t = new Thread(new ConnectionHandler(clientSocket, sslResource, new TCPClientExpositionStartegy("127.0.0.1", 10001)));
-					t.start();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+	public void listen() {
+		while(this.proxyOn) {
+			try {
+				Socket clientSocket = proxySocket.accept();
+				Thread t = new Thread(new ConnectionHandler(clientSocket, this.sslResource, new LogFileExpositionStrategy()));
+				t.start();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
-		} catch (IOException e1) {
-			e1.printStackTrace();
 		}
+	}
+
+	public ServerSocket getProxySocket() {
+		return proxySocket;
+	}
+
+	public void setProxySocket(ServerSocket proxySocket) {
+		this.proxySocket = proxySocket;
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	public boolean isProxyOn() {
+		return proxyOn;
+	}
+
+	public void setProxyOn(boolean proxyOn) {
+		this.proxyOn = proxyOn;
+	}
+
+	public SSLConfig getSslResource() {
+		return sslResource;
+	}
+
+	public void setSslResource(SSLConfig sslResource) {
+		this.sslResource = sslResource;
 	}
 
 }

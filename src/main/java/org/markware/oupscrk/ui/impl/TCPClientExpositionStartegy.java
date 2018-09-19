@@ -15,8 +15,14 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 
 	private Socket expositionSocket;
 	
-	public TCPClientExpositionStartegy(String hostname, int port) throws UnknownHostException, IOException {
-		this.expositionSocket = new Socket(hostname, port);
+	public TCPClientExpositionStartegy(String hostname, int port) {
+		try {
+			this.expositionSocket = new Socket(hostname, port);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	/**
