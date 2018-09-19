@@ -25,6 +25,10 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 		}
 	}
 	
+	public TCPClientExpositionStartegy(Socket clientSocket) {
+		this.expositionSocket = clientSocket;
+	}
+	
 	/**
 	 * {@inheritDoc}
 	 * @throws IOException 

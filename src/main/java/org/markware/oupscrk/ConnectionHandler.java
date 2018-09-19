@@ -327,7 +327,9 @@ public class ConnectionHandler implements Runnable {
 	}
 
 	public synchronized void displayInfo(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException {
-		this.expositionStrategy.exposeExchange(httpRequest, httpResponse);
+		if (this.expositionStrategy != null) {
+			this.expositionStrategy.exposeExchange(httpRequest, httpResponse);
+		}
 	}
 	
 	/**

@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import org.markware.oupscrk.ui.impl.LogFileExpositionStrategy;
+import org.markware.oupscrk.ui.ExpositionStrategy;
 
 /**
  * Main thread
@@ -21,6 +21,14 @@ public class ProxyServer {
 
 	private SSLConfig sslResource;
 
+	private ExpositionStrategy expositionStrategy;
+	
+	/**
+	 * Constructor
+	 * @param port
+	 * @param sslResource
+	 * @throws IOException
+	 */
 	public ProxyServer(int port, SSLConfig sslResource) throws IOException {
 		this.proxySocket = new ServerSocket(port);
 		this.sslResource = sslResource;
@@ -34,7 +42,8 @@ public class ProxyServer {
 		while(this.proxyOn) {
 			try {
 				Socket clientSocket = proxySocket.accept();
-				Thread t = new Thread(new ConnectionHandler(clientSocket, this.sslResource, new LogFileExpositionStrategy()));
+				ConnectionHandler connectionHandler = new ConnectionHandler(clientSocket, this.sslResource, this.expositionStrategy);
+				Thread t = new Thread(connectionHandler);
 				t.start();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -72,6 +81,14 @@ public class ProxyServer {
 
 	public void setSslResource(SSLConfig sslResource) {
 		this.sslResource = sslResource;
+	}
+
+	public ExpositionStrategy getExpositionStrategy() {
+		return expositionStrategy;
+	}
+
+	public void setExpositionStrategy(ExpositionStrategy expositionStrategy) {
+		this.expositionStrategy = expositionStrategy;
 	}
 
 }

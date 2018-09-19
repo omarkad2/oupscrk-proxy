@@ -9,6 +9,7 @@ import java.util.ArrayList;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
 
 /**
  * Control center
@@ -91,6 +92,13 @@ public class ControlCenter {
 				ackToSend = new AckDTO(true, this.proxyServer.isProxyOn() ? "Proxy is Up" : "Proxy is Down");
 				break;
 			case "startExpose":
+				if (proxyServer.isProxyOn()) {
+					proxyServer.setExpositionStrategy(new TCPClientExpositionStartegy(clientSocket));
+					terminate = false;
+					ackToSend = new AckDTO(true, "");
+				} else {
+					ackToSend = new AckDTO(false, "");
+				}
 				break;
 			case "stopExpose":
 				break;
