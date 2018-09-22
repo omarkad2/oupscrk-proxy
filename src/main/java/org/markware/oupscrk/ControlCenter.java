@@ -104,6 +104,12 @@ public class ControlCenter {
 				}
 				break;
 			case "stopExpose":
+				if (proxyServer.isProxyOn()) {
+					proxyServer.setExpositionStrategy(null);
+					ackToSend = new AckDTO(true, "");
+				} else {
+					ackToSend = new AckDTO(false, "");
+				}
 				break;
 			default:
 				break;
