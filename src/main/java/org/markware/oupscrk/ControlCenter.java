@@ -67,7 +67,6 @@ public class ControlCenter {
 
 	private void handleCommand(Socket clientSocket, String data) throws IOException {
 		CommandDTO request = null;
-		boolean terminate = true;
 		// parse to json
 		JSONObject jsonObj = new JSONObject(data);
 		AckDTO ackToSend = new AckDTO(false, "no command threated");
@@ -86,15 +85,19 @@ public class ControlCenter {
 				break;
 			case "stopProxy":
 				proxyServer.setProxyOn(false);
-				ackToSend = new AckDTO(true, "");
+				ackToSend = new AckDTO(true, String.valueOf(this.proxyServer.getPort()));
 				break;
 			case "checkProxy":
-				ackToSend = new AckDTO(true, this.proxyServer.isProxyOn() ? "Proxy is Up" : "Proxy is Down");
+				if (this.proxyServer.isProxyOn()) {
+					ackToSend = new AckDTO(true, String.valueOf(this.proxyServer.getPort()));
+				} else {
+					ackToSend = new AckDTO(false, String.valueOf(this.proxyServer.getPort()));
+				}
 				break;
 			case "startExpose":
 				if (proxyServer.isProxyOn()) {
-					proxyServer.setExpositionStrategy(new TCPClientExpositionStartegy(clientSocket));
-					terminate = false;
+					proxyServer.setExpositionStrategy(
+							new TCPClientExpositionStartegy("127.0.0.1", Integer.parseInt(request.getArgs().get(0))));
 					ackToSend = new AckDTO(true, "");
 				} else {
 					ackToSend = new AckDTO(false, "");
@@ -107,9 +110,7 @@ public class ControlCenter {
 			}
 		}
 		clientSocket.getOutputStream().write(new JSONObject(ackToSend).toString().getBytes(StandardCharsets.UTF_8));
-		if (terminate) {
-			clientSocket.close();
-		}
+		clientSocket.close();
 	}
 
 	private ArrayList<String> jsonArrToList(Object jsonObject) {

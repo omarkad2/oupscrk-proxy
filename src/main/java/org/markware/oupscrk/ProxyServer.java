@@ -30,6 +30,7 @@ public class ProxyServer {
 	 * @throws IOException
 	 */
 	public ProxyServer(int port, SSLConfig sslResource) throws IOException {
+		this.port = port;
 		this.proxySocket = new ServerSocket(port);
 		this.sslResource = sslResource;
 	}

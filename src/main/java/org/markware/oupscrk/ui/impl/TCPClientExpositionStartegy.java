@@ -3,7 +3,6 @@ package org.markware.oupscrk.ui.impl;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 
 import org.json.JSONObject;
@@ -13,16 +12,15 @@ import org.markware.oupscrk.utils.HttpResponse;
 
 public class TCPClientExpositionStartegy implements ExpositionStrategy {
 
+	private String hostname;
+	
+	private int port;
+	
 	private Socket expositionSocket;
 	
 	public TCPClientExpositionStartegy(String hostname, int port) {
-		try {
-			this.expositionSocket = new Socket(hostname, port);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		this.hostname = hostname;
+		this.port = port;
 	}
 	
 	public TCPClientExpositionStartegy(Socket clientSocket) {
@@ -37,6 +35,7 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException{
 		OutputStreamWriter out = null;
 		try {
+			this.expositionSocket = new Socket(hostname, port);
 			out = new OutputStreamWriter(this.expositionSocket.getOutputStream(), StandardCharsets.UTF_8);
 			JSONObject combined = new JSONObject();
 			combined.put("request", new JSONObject(httpRequest));
@@ -44,8 +43,9 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 			out.write(combined.toString());
 			out.flush();
 		} finally {
-			if (out != null) {
+			if (this.expositionSocket != null) {
 				out.close();
+				this.expositionSocket.close();
 			}
 		}
 		

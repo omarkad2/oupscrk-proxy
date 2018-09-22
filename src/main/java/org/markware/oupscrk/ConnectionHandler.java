@@ -200,12 +200,12 @@ public class ConnectionHandler implements Runnable {
 												   .getBytes(StandardCharsets.UTF_8));
 					}
 					
-					this.proxyToClientBw.write(("Content-Length: " + httpResponse.getEncodedResponseBody().length+"\r\n").getBytes(StandardCharsets.UTF_8));
+					this.proxyToClientBw.write(("Content-Length: " + httpResponse.retrieveEncodedResponseBody().length+"\r\n").getBytes(StandardCharsets.UTF_8));
 					
 					// end headers
 					this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
 					// Send encoded stream to client (navigator)
-					ByteArrayInputStream streamToSend = new ByteArrayInputStream(httpResponse.getEncodedResponseBody());
+					ByteArrayInputStream streamToSend = new ByteArrayInputStream(httpResponse.retrieveEncodedResponseBody());
 					byte[] bodyChunk = new byte [BUFFER_SIZE];
 					int read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE);
 					while ( read != -1 ) {

@@ -88,7 +88,7 @@ public class HttpResponse {
 		}
 	}
 	
-	public byte[] getRawResponseBody() {
+	public byte[] retreiveRawResponseBody() {
 		return rawResponseBody;
 	}
 
@@ -106,7 +106,7 @@ public class HttpResponse {
 		this.plainResponseBody = plainResponseBody;
 	}
 
-	public byte[] getEncodedResponseBody() {
+	public byte[] retrieveEncodedResponseBody() {
 		return encodedResponseBody;
 	}
 
