@@ -28,7 +28,7 @@ public class HttpRequestParser {
 		setHeaders(httpRequest, reader);
 
 		// BODY
-		// setBody(httpRequest, reader);
+//		 setBody(httpRequest, reader);
 
 		httpRequest.interpretRawUri();
 		System.out.println(String.valueOf(httpRequest.getUrl()));
@@ -56,9 +56,9 @@ public class HttpRequestParser {
 	 * @param reader
 	 * @throws IOException
 	 */
-	public static void setHeaders(HttpRequest httpRequest, BufferedReader reader) throws IOException {
+	private static void setHeaders(HttpRequest httpRequest, BufferedReader reader) throws IOException {
 		String header = reader.readLine();
-		while (header.length() > 0) {
+		while (header != null && header.length() > 0) {
 			httpRequest.appendHeaderParameter(header);
 			header = reader.readLine();
 		}
@@ -69,12 +69,11 @@ public class HttpRequestParser {
 	 * @param reader
 	 * @throws IOException
 	 */
-	public void setBody(HttpRequest httpRequest, BufferedReader reader) throws IOException {
+	private static void setBody(HttpRequest httpRequest, BufferedReader reader) throws IOException {
 		String bodyLine = reader.readLine();
-		while (bodyLine.length() > 0) {
+		while (bodyLine != null && !bodyLine.isEmpty()) {
 			httpRequest.appendMessageBody(bodyLine);
-			if (reader.ready())
-				bodyLine = reader.readLine();
+			bodyLine = reader.readLine();
 		}
 	}
 
