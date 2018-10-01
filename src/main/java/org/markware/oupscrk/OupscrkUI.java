@@ -2,6 +2,11 @@ package org.markware.oupscrk;
 
 import java.io.IOException;
 
+/**
+ * Main program
+ * @author citestra
+ *
+ */
 public class OupscrkUI {
 
 	/**
@@ -9,21 +14,31 @@ public class OupscrkUI {
 	 */
 	private final static String CA_FOLDER = "/CA/";
 	
+	/**
+	 * Main method
+	 * @param args
+	 */
 	public static void main(String[] args) {
-		int port = 10001;
-		if (args.length > 0) {
-			port = Integer.parseInt(args[0]);
+		int ccPort = 10001;
+		int proxyPort = 9999;
+		if (args.length > 1) {
+			try {
+				ccPort = Integer.parseInt(args[0]);
+				proxyPort = Integer.parseInt(args[1]);
+			} catch(IllegalArgumentException e) {
+				e.printStackTrace();
+			}
 		}
 
-		System.out.println("Control center on port : " + port);
+		System.out.println("Control center on port : " + ccPort);
 		
 		try {
-			ControlCenter controlCenter = new ControlCenter(port, 9999, CA_FOLDER);
+			ControlCenter controlCenter = new ControlCenter(ccPort, proxyPort, CA_FOLDER);
 			controlCenter.start();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			System.out.println("Control center stopped listening on port : " + port);
+			System.out.println("Control center stopped listening on port : " + ccPort);
 		}
 
 		

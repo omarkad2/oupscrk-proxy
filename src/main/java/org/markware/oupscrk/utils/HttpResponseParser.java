@@ -6,6 +6,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.util.zip.DataFormatException;
 
+import org.markware.oupscrk.objects.HttpResponse;
+
 /**
  * Http Response parser
  * @author citestra
@@ -14,6 +16,7 @@ import java.util.zip.DataFormatException;
 public class HttpResponseParser {
 
 	private final static int BUFFER_SIZE = 65536;
+	
 	/**
 	 * Parse response from UrlConnection
 	 * @return Http response

@@ -1,10 +1,12 @@
-package org.markware.oupscrk.utils;
+package org.markware.oupscrk.objects;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+
+import org.markware.oupscrk.utils.CompressionUtils;
 
 /**
  * Http Response

@@ -31,15 +31,15 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
+import org.markware.oupscrk.objects.HttpRequest;
+import org.markware.oupscrk.objects.HttpResponse;
 import org.markware.oupscrk.ui.ExpositionStrategy;
-import org.markware.oupscrk.utils.HttpRequest;
 import org.markware.oupscrk.utils.HttpRequestParser;
-import org.markware.oupscrk.utils.HttpResponse;
 import org.markware.oupscrk.utils.HttpResponseParser;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
- * Connection intercepter
+ * Connection handler
  * @author citestra
  *
  */
@@ -73,7 +73,7 @@ public class ConnectionHandler implements Runnable {
 	private SSLConfig sslResource;
 
 	/**
-	 * Read data client sends to proxy
+	 * Read data client
 	 */
 	private BufferedReader proxyToClientBr;
 
@@ -113,13 +113,13 @@ public class ConnectionHandler implements Runnable {
 	 */
 	@Override
 	public void run() {
-		readClientRequest();
+		handleClientConnection();
 	}
 
 	/**
 	 * Intercept client's request
 	 */
-	public void readClientRequest() {
+	public void handleClientConnection() {
 		try {
 			HttpRequest requestParsed = HttpRequestParser.parseRequest(this.proxyToClientBr);
 			if (requestParsed.getRequestType() != null && requestParsed.getUrl() != null) {
@@ -224,6 +224,11 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
+	/**
+	 * Filter-out proxy specific headers
+	 * @param headers
+	 * @return filtered headers
+	 */
 	private Map<String, String> filterHeaders(Hashtable<String, String> headers) {
 		Entry<String, String> allowedEncodings = 
 				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "gzip, deflate, identity, x-gzip");
@@ -232,6 +237,12 @@ public class ConnectionHandler implements Runnable {
 								   .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 	}
 	
+	/**
+	 * Send CA cert to client (navigator)
+	 * @param httpRequest
+	 * @throws IOException
+	 * @throws CertificateEncodingException
+	 */
 	private void sendCaCert(HttpRequest httpRequest) throws IOException, CertificateEncodingException {
 		byte[] caCertData = sslResource.getCaCert().getEncoded();
 		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpRequest.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
@@ -254,7 +265,7 @@ public class ConnectionHandler implements Runnable {
 		if (sslResource.isAllSet()) {
 			completeSSLHandshake(httpRequest);
 		} else {
-			System.out.println("CA resources missing -> aborting mission !");
+			System.out.println("SSL configuration missing -> abort mission !");
 			this.shutdown();
 		}
 	}
@@ -309,7 +320,7 @@ public class ConnectionHandler implements Runnable {
 							this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 							String connType = httpRequest.getHeaderParam("Proxy-Connection", "");
 							if (! "close".equalsIgnoreCase(connType)) {
-								readClientRequest();
+								handleClientConnection();
 							} else {
 								this.shutdown();
 							}
@@ -326,6 +337,12 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 
+	/**
+	 * Expose info
+	 * @param httpRequest
+	 * @param httpResponse
+	 * @throws IOException
+	 */
 	public synchronized void displayInfo(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException {
 		if (this.expositionStrategy != null) {
 			this.expositionStrategy.exposeExchange(httpRequest, httpResponse);

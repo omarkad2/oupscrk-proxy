@@ -12,7 +12,7 @@ import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
  * SSL resource loader
- * @author omarkad
+ * @author citestra
  *
  */
 public class SSLConfig {
@@ -23,20 +23,10 @@ public class SSLConfig {
 	private PrivateKey caKey;
 
 	/**
-	 * Intermediate Key
-	 */
-	private PrivateKey intKey;
-	
-	/**
 	 * CA Cert
 	 */
 	private X509Certificate caCert;
 
-	/**
-	 * Intermediate Cert
-	 */
-	private X509Certificate intCert;
-	
 	/**
 	 * Cert Key
 	 */
@@ -49,21 +39,15 @@ public class SSLConfig {
 	
 	/**
 	 * Constructor
-	 * @param port
+	 * @param root folder
 	 */
 	public SSLConfig(String rootFolder) {
 		try {
 			/* CA KEY */
 			this.caKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "ca.key"));
 			
-			/* INT KEY */
-//			this.intKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "int.key"));
-			
 			/* CA CERT */
 			this.caCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "ca.crt"));
-			
-			/* INT CERT */
-//			this.intCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "int.crt"));
 			
 			/* CERT KEY */
 			this.certKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "cert.key"));
@@ -81,20 +65,13 @@ public class SSLConfig {
 		return this.caKey != null && this.caCert != null && this.certKey != null && this.certsFolder != null;
 	}
 	
+	///////////////////////////////////////// GETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public PrivateKey getCaKey() {
 		return caKey;
 	}
 
-	public PrivateKey getIntKey() {
-		return intKey;
-	}
-
 	public X509Certificate getCaCert() {
 		return caCert;
-	}
-
-	public X509Certificate getIntCert() {
-		return intCert;
 	}
 
 	public PrivateKey getCertKey() {

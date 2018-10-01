@@ -49,6 +49,13 @@ import org.markware.oupscrk.SSLConfig;
 
 public class SecurityUtils {
 
+	/**
+	 * Create cert for hostname using my CA
+	 * @param hostname
+	 * @param certFile
+	 * @param sslResource
+	 * @throws Exception
+	 */
 	public static void createHostCert(
 			String hostname,
 			String certFile,
@@ -105,7 +112,6 @@ public class SecurityUtils {
 
 		Certificate[] chain = new Certificate[2];
 		chain[1] = (Certificate) sslResource.getCaCert();
-//		chain[1] = (Certificate) sslResource.getIntCert();
 		chain[0] = (Certificate) cert;
 
 		KeyStore store = KeyStore.getInstance("PKCS12", "BC");
@@ -136,7 +142,7 @@ public class SecurityUtils {
 	}
 
 	/**
-	 * 
+	 * Load Private key from file
 	 * @param privKeyFile private key File
 	 * @return private key
 	 * @throws GeneralSecurityException
@@ -157,7 +163,7 @@ public class SecurityUtils {
 	}
 	
 	/**
-	 * 
+	 * Load X509 Certificate from file
 	 * @param certFile certificate file
 	 * @return X509Certificate
 	 * @throws CertificateException
@@ -174,6 +180,13 @@ public class SecurityUtils {
 				)));
 	}
 
+	/**
+	 * Load Private key from Inputstream
+	 * @param resourceAsStream resource stream
+	 * @return private key
+	 * @throws NoSuchAlgorithmException
+	 * @throws InvalidKeySpecException
+	 */
 	public static PrivateKey loadPrivateKey(InputStream resourceAsStream) throws NoSuchAlgorithmException, InvalidKeySpecException {
 		String privKeyStr = new BufferedReader(new InputStreamReader(resourceAsStream))
 				  .lines().collect(Collectors.joining("\n"));
@@ -189,6 +202,12 @@ public class SecurityUtils {
 		return priv;
 	}
 
+	/**
+	 * Load X509 Certificate from Inputstream
+	 * @param resourceAsStream resource stream
+	 * @return X509Certificate
+	 * @throws CertificateException
+	 */
 	public static X509Certificate loadX509Certificate(InputStream resourceAsStream) throws CertificateException {
 		String certStr = new BufferedReader(new InputStreamReader(resourceAsStream))
 				  .lines().collect(Collectors.joining("\n"));

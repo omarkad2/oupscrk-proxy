@@ -9,11 +9,13 @@ import java.util.ArrayList;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.markware.oupscrk.dto.AckDTO;
+import org.markware.oupscrk.dto.CommandDTO;
 import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
 
 /**
  * Control center
- * @author omarkad
+ * @author citestra
  *
  */
 public class ControlCenter {
@@ -28,8 +30,14 @@ public class ControlCenter {
 	 */
 	private boolean running;
 
+	/**
+	 * Proxy Server
+	 */
 	private ProxyServer proxyServer;
 	
+	/**
+	 * SSL configuration folder
+	 */
 	private String sslConfigFolder;
 	
 	/**
@@ -65,6 +73,12 @@ public class ControlCenter {
 		}
 	}
 
+	/**
+	 * Handle client requests and sends data back
+	 * @param clientSocket
+	 * @param data
+	 * @throws IOException
+	 */
 	private void handleCommand(Socket clientSocket, String data) throws IOException {
 		CommandDTO request = null;
 		// parse to json
@@ -119,6 +133,11 @@ public class ControlCenter {
 		clientSocket.close();
 	}
 
+	/**
+	 * Convert json array to ArrayList
+	 * @param jsonObject
+	 * @return
+	 */
 	private ArrayList<String> jsonArrToList(Object jsonObject) {
 		ArrayList<String> list = new ArrayList<String>();   
 		JSONArray jsonArray = (JSONArray)jsonObject;

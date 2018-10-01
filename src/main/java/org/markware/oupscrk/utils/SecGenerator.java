@@ -33,6 +33,11 @@ import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 
+/**
+ * Generate SSL resources (CA key, CA cert, Int key, Int cert, SNIs cert key)
+ * @author citestra
+ *
+ */
 public class SecGenerator {
 
 	/**
@@ -40,11 +45,8 @@ public class SecGenerator {
 	 */
 	public static X509Certificate createMasterCert(
 			PublicKey       pubKey,
-			PrivateKey      privKey)
-					throws Exception {
-		//
+			PrivateKey      privKey) throws Exception {
 		// signers name 
-		//
 		X500NameBuilder nameBuilder = new X500NameBuilder();
 
 		nameBuilder.addRDN(BCStyle.C, "MA");
@@ -53,9 +55,8 @@ public class SecGenerator {
 		nameBuilder.addRDN(BCStyle.CN, "Markware-CA");
 
 		X500Name x500Name = nameBuilder.build();
-		//
+		
 		// create the certificate - version 3
-		//
 		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(x500Name, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30) * 10),
 				x500Name, pubKey);
@@ -84,9 +85,7 @@ public class SecGenerator {
 			PrivateKey      caPrivKey,
 			X509Certificate caCert)
 					throws Exception {
-		//
 		// subject name builder.
-		//
 		X500NameBuilder nameBuilder = new X500NameBuilder();
 
 		nameBuilder.addRDN(BCStyle.C, "MA");
@@ -94,16 +93,12 @@ public class SecGenerator {
 		nameBuilder.addRDN(BCStyle.OU, "Intermediate Certificate");
 		nameBuilder.addRDN(BCStyle.CN, "Intermediate");
 		
-		//
 		// create the certificate - version 3
-		//
 		X509v3CertificateBuilder v3Bldr = new JcaX509v3CertificateBuilder(caCert, new BigInteger(32, new SecureRandom()),
 				new Date(System.currentTimeMillis() - 1000L * 60 * 60 * 24 * 30), new Date(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30) * 10),
 				nameBuilder.build(), pubKey);
 
-		//
 		// extensions
-		//
 		JcaX509ExtensionUtils extUtils = new JcaX509ExtensionUtils();
 
 		v3Bldr.addExtension(
@@ -132,6 +127,11 @@ public class SecGenerator {
 		return cert;
 	}
 
+	/**
+	 * Convert X509 Certificate to string
+	 * @param cert
+	 * @return X509 Certificate as string
+	 */
 	public static String certToString(X509Certificate cert) {
 	    StringWriter sw = new StringWriter();
 	    try {
@@ -144,18 +144,21 @@ public class SecGenerator {
 	    return sw.toString();
 	}
 
+	/**
+	 * Main method
+	 * @param args
+	 * @throws Exception
+	 */
 	public static void main(String[] args) throws Exception {
 		Security.addProvider(new BouncyCastleProvider());
 
 		KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
         keyGen.initialize(2048);
         
-		//
 		// set up the keys
-		//
-        KeyPair          caKeys = keyGen.generateKeyPair();
-        KeyPair          intKeys = keyGen.generateKeyPair();
-        KeyPair          certKeys = keyGen.generateKeyPair();
+        KeyPair caKeys = keyGen.generateKeyPair();
+        KeyPair intKeys = keyGen.generateKeyPair();
+        KeyPair certKeys = keyGen.generateKeyPair();
         
 		X509Certificate caCert = createMasterCert(caKeys.getPublic(), caKeys.getPrivate());
 		X509Certificate intCert = createIntermediateCert(intKeys.getPublic(), caKeys.getPrivate(), caCert);

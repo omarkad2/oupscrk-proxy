@@ -6,9 +6,9 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 import org.json.JSONObject;
+import org.markware.oupscrk.objects.HttpRequest;
+import org.markware.oupscrk.objects.HttpResponse;
 import org.markware.oupscrk.ui.ExpositionStrategy;
-import org.markware.oupscrk.utils.HttpRequest;
-import org.markware.oupscrk.utils.HttpResponse;
 
 public class TCPClientExpositionStartegy implements ExpositionStrategy {
 

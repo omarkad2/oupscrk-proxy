@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.dto;
 
 public class AckDTO {
 

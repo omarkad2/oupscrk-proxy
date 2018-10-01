@@ -3,6 +3,8 @@ package org.markware.oupscrk.utils;
 import java.io.BufferedReader;
 import java.io.IOException;
 
+import org.markware.oupscrk.objects.HttpRequest;
+
 /**
  * Http Request Parser
  * @author citestra

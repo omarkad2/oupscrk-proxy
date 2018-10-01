@@ -7,20 +7,35 @@ import java.net.Socket;
 import org.markware.oupscrk.ui.ExpositionStrategy;
 
 /**
- * Main thread
+ * Proxy Server
  * @author citestra
  *
  */
 public class ProxyServer {
 
+	/**
+	 * Proxy socket
+	 */
 	private ServerSocket proxySocket;
 
+	/**
+	 * Proxy port
+	 */
 	private int port;
 
+	/**
+	 * is Proxy On ?
+	 */
 	private boolean proxyOn;
 
+	/** 
+	 * SSL configuration
+	 */
 	private SSLConfig sslResource;
 
+	/**
+	 * Exposing exchanges strategy
+	 */
 	private ExpositionStrategy expositionStrategy;
 	
 	/**
@@ -52,6 +67,7 @@ public class ProxyServer {
 		}
 	}
 
+	///////////////////////////////////////// GETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public ServerSocket getProxySocket() {
 		return proxySocket;
 	}

@@ -5,9 +5,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map.Entry;
 
+import org.markware.oupscrk.objects.HttpRequest;
+import org.markware.oupscrk.objects.HttpResponse;
 import org.markware.oupscrk.ui.ExpositionStrategy;
-import org.markware.oupscrk.utils.HttpRequest;
-import org.markware.oupscrk.utils.HttpResponse;
 
 public class LogFileExpositionStrategy implements ExpositionStrategy {
 

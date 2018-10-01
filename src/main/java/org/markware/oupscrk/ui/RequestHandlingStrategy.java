@@ -1,6 +1,6 @@
 package org.markware.oupscrk.ui;
 
-import org.markware.oupscrk.utils.HttpRequest;
+import org.markware.oupscrk.objects.HttpRequest;
 
 public interface RequestHandlingStrategy {
 

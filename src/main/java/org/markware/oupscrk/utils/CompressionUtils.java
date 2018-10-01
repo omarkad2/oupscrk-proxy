@@ -9,6 +9,11 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 import java.util.zip.Inflater;  
 
+/**
+ * Compression utilities
+ * @author citestra
+ *
+ */
 public class CompressionUtils {  
 
 	public static byte[] gzipCompress(byte[] data) throws IOException {
