@@ -1,4 +1,4 @@
-package org.markware.oupscrk.ui.impl;
+package org.markware.oupscrk.ui.strategy.impl;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -6,9 +6,9 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
 import org.json.JSONObject;
-import org.markware.oupscrk.objects.HttpRequest;
-import org.markware.oupscrk.objects.HttpResponse;
-import org.markware.oupscrk.ui.ExpositionStrategy;
+import org.markware.oupscrk.http.HttpRequest;
+import org.markware.oupscrk.http.HttpResponse;
+import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 
 public class TCPClientExpositionStartegy implements ExpositionStrategy {
 

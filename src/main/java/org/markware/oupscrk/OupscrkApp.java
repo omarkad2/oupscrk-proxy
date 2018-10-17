@@ -2,18 +2,15 @@ package org.markware.oupscrk;
 
 import java.io.IOException;
 
+import org.markware.oupscrk.ui.ControlCenter;
+
 /**
  * Main program
  * @author citestra
  *
  */
-public class OupscrkUI {
+public class OupscrkApp {
 
-	/**
-	 * CA resources
-	 */
-	private final static String CA_FOLDER = "/CA/";
-	
 	/**
 	 * Main method
 	 * @param args
@@ -33,7 +30,7 @@ public class OupscrkUI {
 		System.out.println("Control center on port : " + ccPort);
 		
 		try {
-			ControlCenter controlCenter = new ControlCenter(ccPort, proxyPort, CA_FOLDER);
+			ControlCenter controlCenter = new ControlCenter(ccPort, proxyPort);
 			controlCenter.start();
 		} catch (IOException e) {
 			e.printStackTrace();

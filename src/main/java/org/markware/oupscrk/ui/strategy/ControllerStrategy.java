@@ -1,4 +1,4 @@
-package org.markware.oupscrk.ui;
+package org.markware.oupscrk.ui.strategy;
 
 public interface ControllerStrategy {
 

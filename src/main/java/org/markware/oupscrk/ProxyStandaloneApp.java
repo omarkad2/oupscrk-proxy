@@ -2,17 +2,15 @@ package org.markware.oupscrk;
 
 import java.io.IOException;
 
+import org.markware.oupscrk.config.SSLConfig;
+import org.markware.oupscrk.proxy.ProxyServer;
+
 /**
  * Main class
  * @author citestra
  *
  */
-public class Oupscrk {
-
-	/**
-	 * CA resources
-	 */
-	private final static String CA_FOLDER = "/CA/";
+public class ProxyStandaloneApp {
 
 	/**
 	 * Main method
@@ -28,7 +26,7 @@ public class Oupscrk {
 		System.out.println("Proxy listening on port : " + port);
 		
 		try {
-			ProxyServer proxyServer = new ProxyServer(port, new SSLConfig(CA_FOLDER));
+			ProxyServer proxyServer = new ProxyServer(port, new SSLConfig());
 			proxyServer.setProxyOn(true);
 			proxyServer.listen();
 		} catch (IOException e) {

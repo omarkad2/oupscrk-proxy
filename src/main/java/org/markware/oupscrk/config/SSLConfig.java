@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.config;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,6 +17,11 @@ import org.markware.oupscrk.utils.SecurityUtils;
  */
 public class SSLConfig {
 
+	/**
+	 * SSL resources
+	 */
+	private final static String SSL_PATH = "/CA/";
+	
 	/**
 	 * CA key
 	 */
@@ -41,16 +46,16 @@ public class SSLConfig {
 	 * Constructor
 	 * @param root folder
 	 */
-	public SSLConfig(String rootFolder) {
+	public SSLConfig() {
 		try {
 			/* CA KEY */
-			this.caKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "ca.key"));
+			this.caKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(SSL_PATH + "ca.key"));
 			
 			/* CA CERT */
-			this.caCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(rootFolder + "ca.crt"));
+			this.caCert = SecurityUtils.loadX509Certificate(SSLConfig.class.getResourceAsStream(SSL_PATH + "ca.crt"));
 			
 			/* CERT KEY */
-			this.certKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(rootFolder + "cert.key"));
+			this.certKey = SecurityUtils.loadPrivateKey(SSLConfig.class.getResourceAsStream(SSL_PATH + "cert.key"));
 			
 			/* CERTS FOLDER */
 			this.certsFolder = Files.exists(Paths.get("certs")) ? Paths.get("certs") : Files.createDirectory(Paths.get("certs"));

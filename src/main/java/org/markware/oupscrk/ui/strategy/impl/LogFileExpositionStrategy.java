@@ -1,13 +1,13 @@
-package org.markware.oupscrk.ui.impl;
+package org.markware.oupscrk.ui.strategy.impl;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map.Entry;
 
-import org.markware.oupscrk.objects.HttpRequest;
-import org.markware.oupscrk.objects.HttpResponse;
-import org.markware.oupscrk.ui.ExpositionStrategy;
+import org.markware.oupscrk.http.HttpRequest;
+import org.markware.oupscrk.http.HttpResponse;
+import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 
 public class LogFileExpositionStrategy implements ExpositionStrategy {
 

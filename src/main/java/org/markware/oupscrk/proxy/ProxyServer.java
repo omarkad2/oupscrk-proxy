@@ -1,10 +1,11 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.proxy;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-import org.markware.oupscrk.ui.ExpositionStrategy;
+import org.markware.oupscrk.config.SSLConfig;
+import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 
 /**
  * Proxy Server
@@ -67,7 +68,7 @@ public class ProxyServer {
 		}
 	}
 
-	///////////////////////////////////////// GETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+	///////////////////////////////////////// GETTERS/SETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public ServerSocket getProxySocket() {
 		return proxySocket;
 	}

@@ -45,7 +45,7 @@ import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
-import org.markware.oupscrk.SSLConfig;
+import org.markware.oupscrk.config.SSLConfig;
 
 public class SecurityUtils {
 

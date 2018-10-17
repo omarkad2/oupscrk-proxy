@@ -1,9 +1,9 @@
-package org.markware.oupscrk.utils;
+package org.markware.oupscrk.http.parser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 
-import org.markware.oupscrk.objects.HttpRequest;
+import org.markware.oupscrk.http.HttpRequest;
 
 /**
  * Http Request Parser

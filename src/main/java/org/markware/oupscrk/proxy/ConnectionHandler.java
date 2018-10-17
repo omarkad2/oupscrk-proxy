@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.proxy;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -31,11 +31,12 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
-import org.markware.oupscrk.objects.HttpRequest;
-import org.markware.oupscrk.objects.HttpResponse;
-import org.markware.oupscrk.ui.ExpositionStrategy;
-import org.markware.oupscrk.utils.HttpRequestParser;
-import org.markware.oupscrk.utils.HttpResponseParser;
+import org.markware.oupscrk.config.SSLConfig;
+import org.markware.oupscrk.http.HttpRequest;
+import org.markware.oupscrk.http.HttpResponse;
+import org.markware.oupscrk.http.parser.HttpRequestParser;
+import org.markware.oupscrk.http.parser.HttpResponseParser;
+import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**

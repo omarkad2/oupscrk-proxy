@@ -1,9 +1,9 @@
-package org.markware.oupscrk.ui;
+package org.markware.oupscrk.ui.strategy;
 
 import java.io.IOException;
 
-import org.markware.oupscrk.objects.HttpRequest;
-import org.markware.oupscrk.objects.HttpResponse;
+import org.markware.oupscrk.http.HttpRequest;
+import org.markware.oupscrk.http.HttpResponse;
 
 public interface ExpositionStrategy {
 

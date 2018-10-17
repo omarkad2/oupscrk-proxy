@@ -1,4 +1,4 @@
-package org.markware.oupscrk;
+package org.markware.oupscrk.ui;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -9,9 +9,11 @@ import java.util.ArrayList;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.markware.oupscrk.config.SSLConfig;
 import org.markware.oupscrk.dto.AckDTO;
 import org.markware.oupscrk.dto.CommandDTO;
-import org.markware.oupscrk.ui.impl.TCPClientExpositionStartegy;
+import org.markware.oupscrk.proxy.ProxyServer;
+import org.markware.oupscrk.ui.strategy.impl.TCPClientExpositionStartegy;
 
 /**
  * Control center
@@ -36,19 +38,13 @@ public class ControlCenter {
 	private ProxyServer proxyServer;
 	
 	/**
-	 * SSL configuration folder
-	 */
-	private String sslConfigFolder;
-	
-	/**
 	 * Constructor
 	 * @param port
 	 * @throws IOException
 	 */
-	public ControlCenter(int port, int proxyPort, String sslConfigFolder) throws IOException {
+	public ControlCenter(int port, int proxyPort) throws IOException {
 		this.serverSocket = new ServerSocket(port);
-		this.sslConfigFolder = sslConfigFolder;
-		this.proxyServer = new ProxyServer(proxyPort, new SSLConfig(this.sslConfigFolder));
+		this.proxyServer = new ProxyServer(proxyPort, new SSLConfig());
 		this.running = true;
 	}
 

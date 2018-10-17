@@ -1,4 +1,4 @@
-package org.markware.oupscrk.utils;
+package org.markware.oupscrk.http.parser;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -6,7 +6,8 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.util.zip.DataFormatException;
 
-import org.markware.oupscrk.objects.HttpResponse;
+import org.markware.oupscrk.http.HttpResponse;
+import org.markware.oupscrk.utils.CompressionUtils;
 
 /**
  * Http Response parser

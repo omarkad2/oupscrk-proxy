@@ -1,6 +1,6 @@
-package org.markware.oupscrk.ui;
+package org.markware.oupscrk.ui.strategy;
 
-import org.markware.oupscrk.objects.HttpResponse;
+import org.markware.oupscrk.http.HttpResponse;
 
 public interface ResponseHandlingStrategy {
 
