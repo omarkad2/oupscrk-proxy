@@ -2,7 +2,7 @@ package org.markware.oupscrk;
 
 import java.io.IOException;
 
-import org.markware.oupscrk.ui.ControlCenter;
+import org.markware.oupscrk.ui.CommandCenter;
 
 /**
  * Main program
@@ -30,7 +30,7 @@ public class OupscrkApp {
 		System.out.println("Control center on port : " + ccPort);
 		
 		try {
-			ControlCenter controlCenter = new ControlCenter(ccPort, proxyPort);
+			CommandCenter controlCenter = new CommandCenter(ccPort, proxyPort);
 			controlCenter.start();
 		} catch (IOException e) {
 			e.printStackTrace();

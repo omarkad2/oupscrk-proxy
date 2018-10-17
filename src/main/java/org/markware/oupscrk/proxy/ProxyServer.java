@@ -6,6 +6,8 @@ import java.net.Socket;
 
 import org.markware.oupscrk.config.SSLConfig;
 import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
+import org.markware.oupscrk.ui.strategy.RequestHandlingStrategy;
+import org.markware.oupscrk.ui.strategy.ResponseHandlingStrategy;
 
 /**
  * Proxy Server
@@ -40,6 +42,16 @@ public class ProxyServer {
 	private ExpositionStrategy expositionStrategy;
 	
 	/**
+	 * Request handling strategy
+	 */
+	private RequestHandlingStrategy requestHandlingStrategy;
+	
+	/**
+	 * Response handling strategy
+	 */
+	private ResponseHandlingStrategy responseHandlingStrategy;
+	
+	/**
 	 * Constructor
 	 * @param port
 	 * @param sslResource
@@ -59,7 +71,12 @@ public class ProxyServer {
 		while(this.proxyOn) {
 			try {
 				Socket clientSocket = proxySocket.accept();
-				ConnectionHandler connectionHandler = new ConnectionHandler(clientSocket, this.sslResource, this.expositionStrategy);
+				ConnectionHandler connectionHandler = 
+						new ConnectionHandler().withClientSocket(clientSocket)
+											   .withSSLConfig(this.sslResource)
+											   .withExpositionStrategy(this.expositionStrategy)
+											   .withRequestHandlingStrategy(this.requestHandlingStrategy)
+											   .withResponseHandlingStrategy(this.responseHandlingStrategy);
 				Thread t = new Thread(connectionHandler);
 				t.start();
 			} catch (IOException e) {
@@ -107,6 +124,22 @@ public class ProxyServer {
 
 	public void setExpositionStrategy(ExpositionStrategy expositionStrategy) {
 		this.expositionStrategy = expositionStrategy;
+	}
+
+	public RequestHandlingStrategy getRequestHandlingStrategy() {
+		return requestHandlingStrategy;
+	}
+
+	public void setRequestHandlingStrategy(RequestHandlingStrategy requestHandlingStrategy) {
+		this.requestHandlingStrategy = requestHandlingStrategy;
+	}
+
+	public ResponseHandlingStrategy getResponseHandlingStrategy() {
+		return responseHandlingStrategy;
+	}
+
+	public void setResponseHandlingStrategy(ResponseHandlingStrategy responseHandlingStrategy) {
+		this.responseHandlingStrategy = responseHandlingStrategy;
 	}
 
 }

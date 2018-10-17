@@ -37,6 +37,8 @@ import org.markware.oupscrk.http.HttpResponse;
 import org.markware.oupscrk.http.parser.HttpRequestParser;
 import org.markware.oupscrk.http.parser.HttpResponseParser;
 import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
+import org.markware.oupscrk.ui.strategy.RequestHandlingStrategy;
+import org.markware.oupscrk.ui.strategy.ResponseHandlingStrategy;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
@@ -89,26 +91,74 @@ public class ConnectionHandler implements Runnable {
 	private ExpositionStrategy expositionStrategy;
 	
 	/**
-	 * Constructor
-	 * @param clientSocket
+	 * Request handling strategy
 	 */
-	public ConnectionHandler(
-			Socket clientSocket, 
-			SSLConfig sslResource,
-			ExpositionStrategy expositionStrategy) {
-		this.clientSocket = clientSocket;
-		this.sslResource = sslResource;
-		this.expositionStrategy = expositionStrategy;
+	private RequestHandlingStrategy requestHandlingStrategy;
+	
+	/**
+	 * Response handling strategy
+	 */
+	private ResponseHandlingStrategy responseHandlingStrategy;
+	
+	/**
+	 * Default Constructor
+	 */
+	public ConnectionHandler() {}
+	
+	public ConnectionHandler withClientSocket(Socket clientSocket) {
 		try{
-			this.clientSocket.setSoTimeout(20000);
 			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
 			this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 		} 
 		catch (IOException e) {
 			e.printStackTrace();
 		}
+		return this;
+	}
+	
+	/**
+	 * Set sslConfig
+	 * @param sslResource
+	 * @return connection handler
+	 */
+	public ConnectionHandler withSSLConfig(SSLConfig sslResource) {
+		this.sslResource = sslResource;
+		return this;
+	}
+	
+	/**
+	 * Set exposition strategy
+	 * @param expositionStrategy
+	 * @return connection handler
+	 */
+	public ConnectionHandler withExpositionStrategy(
+			ExpositionStrategy expositionStrategy) {
+		this.expositionStrategy = expositionStrategy;
+		return this;
 	}
 
+	/**
+	 * Set request handling strategy
+	 * @param requestHandlingStrategy
+	 * @return connection handler
+	 */
+	public ConnectionHandler withRequestHandlingStrategy(
+			RequestHandlingStrategy requestHandlingStrategy) {
+		this.requestHandlingStrategy = requestHandlingStrategy;
+		return this;
+	}
+	
+	/**
+	 * Set response handling strategy
+	 * @param responseHandlingStrategy
+	 * @return connection handler
+	 */
+	public ConnectionHandler withResponseHandlingStrategy(
+			ResponseHandlingStrategy responseHandlingStrategy) {
+		this.responseHandlingStrategy = responseHandlingStrategy;
+		return this;
+	}
+	
 	/**
 	 * Run method
 	 */
@@ -159,6 +209,9 @@ public class ConnectionHandler implements Runnable {
 					conn = (HttpURLConnection)url.openConnection();
 				}
 
+				// Tamper with Request
+				httpRequest = tamperHttpRequest(httpRequest);
+				
 				// Set Request Method
 				conn.setRequestMethod(httpRequest.getRequestType());
 
@@ -187,6 +240,9 @@ public class ConnectionHandler implements Runnable {
 				HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 				
 				if (httpResponse.isNotBlank()) {
+					// Tamper with Response
+					httpResponse = tamperHttpResponse(httpResponse);
+					
 					// Send status line
 					this.proxyToClientBw.write(String.format("%s\r\n", httpResponse.getStatusLine()).getBytes(StandardCharsets.UTF_8));
 					
@@ -225,38 +281,6 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 	
-	/**
-	 * Filter-out proxy specific headers
-	 * @param headers
-	 * @return filtered headers
-	 */
-	private Map<String, String> filterHeaders(Hashtable<String, String> headers) {
-		Entry<String, String> allowedEncodings = 
-				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "gzip, deflate, identity, x-gzip");
-		return headers.entrySet().stream().filter((header) -> !HEADERS_TO_REMOVE.contains(header.getKey()))
-									.map((header) -> "Accept-Encoding".equals(header.getKey()) ? allowedEncodings : header)
-								   .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
-	}
-	
-	/**
-	 * Send CA cert to client (navigator)
-	 * @param httpRequest
-	 * @throws IOException
-	 * @throws CertificateEncodingException
-	 */
-	private void sendCaCert(HttpRequest httpRequest) throws IOException, CertificateEncodingException {
-		byte[] caCertData = sslResource.getCaCert().getEncoded();
-		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpRequest.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
-		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Type", "application/x-x509-ca-cert").getBytes(StandardCharsets.UTF_8));
-		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Length", caCertData.length).getBytes(StandardCharsets.UTF_8));
-		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Connection", "close").getBytes(StandardCharsets.UTF_8));
-
-		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
-
-		this.proxyToClientBw.write(caCertData);
-		this.proxyToClientBw.flush();
-	}
-
 	/**
 	 * Do connect handler
 	 * @param httpRequest Client HTTP request
@@ -338,6 +362,62 @@ public class ConnectionHandler implements Runnable {
 		}
 	}
 
+	/**
+	 * Filter-out proxy specific headers
+	 * @param headers
+	 * @return filtered headers
+	 */
+	private Map<String, String> filterHeaders(Hashtable<String, String> headers) {
+		Entry<String, String> allowedEncodings = 
+				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "gzip, deflate, identity, x-gzip");
+		return headers.entrySet().stream().filter((header) -> !HEADERS_TO_REMOVE.contains(header.getKey()))
+									.map((header) -> "Accept-Encoding".equals(header.getKey()) ? allowedEncodings : header)
+								   .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+	}
+	
+	/**
+	 * Send CA cert to client (navigator)
+	 * @param httpRequest
+	 * @throws IOException
+	 * @throws CertificateEncodingException
+	 */
+	private void sendCaCert(HttpRequest httpRequest) throws IOException, CertificateEncodingException {
+		byte[] caCertData = sslResource.getCaCert().getEncoded();
+		this.proxyToClientBw.write(String.format("%s %d %s\r\n", httpRequest.getHttpVersion(), 200, "OK").getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Type", "application/x-x509-ca-cert").getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Content-Length", caCertData.length).getBytes(StandardCharsets.UTF_8));
+		this.proxyToClientBw.write(String.format("%s: %s\r\n", "Connection", "close").getBytes(StandardCharsets.UTF_8));
+
+		this.proxyToClientBw.write("\r\n".getBytes(StandardCharsets.UTF_8));
+
+		this.proxyToClientBw.write(caCertData);
+		this.proxyToClientBw.flush();
+	}
+	
+	/**
+	 * Tamper with http request
+	 * @param httpRequest
+	 * @return tampered request
+	 */
+	private HttpRequest tamperHttpRequest(HttpRequest httpRequest) {
+		if (this.requestHandlingStrategy != null) {
+			this.requestHandlingStrategy.updateRequest(httpRequest);
+		}
+		return httpRequest;
+	}
+
+	/**
+	 * Tamper with http response
+	 * @param httpResponse
+	 * @return tampered response
+	 */
+	private HttpResponse tamperHttpResponse(HttpResponse httpResponse) {
+		if (this.responseHandlingStrategy != null) {
+			this.responseHandlingStrategy.updateResponse(httpResponse);
+		}
+		return httpResponse;
+	}
+	
 	/**
 	 * Expose info
 	 * @param httpRequest

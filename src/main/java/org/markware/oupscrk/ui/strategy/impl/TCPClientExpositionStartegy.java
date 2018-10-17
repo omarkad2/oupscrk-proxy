@@ -12,19 +12,12 @@ import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 
 public class TCPClientExpositionStartegy implements ExpositionStrategy {
 
-	private String hostname;
-	
-	private int port;
+	private Payload payload;
 	
 	private Socket expositionSocket;
 	
-	public TCPClientExpositionStartegy(String hostname, int port) {
-		this.hostname = hostname;
-		this.port = port;
-	}
-	
-	public TCPClientExpositionStartegy(Socket clientSocket) {
-		this.expositionSocket = clientSocket;
+	public TCPClientExpositionStartegy(String payload) {
+		this.payload = Payload.payloadDecoder(payload);
 	}
 	
 	/**
@@ -35,7 +28,7 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException{
 		OutputStreamWriter out = null;
 		try {
-			this.expositionSocket = new Socket(hostname, port);
+			this.expositionSocket = new Socket(payload.getHostname(), payload.getPort());
 			out = new OutputStreamWriter(this.expositionSocket.getOutputStream(), StandardCharsets.UTF_8);
 			JSONObject combined = new JSONObject();
 			combined.put("request", new JSONObject(httpRequest));
@@ -49,6 +42,52 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 			}
 		}
 		
+	}
+	
+	/**
+	 * Payload
+	 * @author citestra
+	 *
+	 */
+	private static class Payload {
+		
+		/**
+		 * Hostname
+		 */
+		private String hostname;
+		
+		/**
+		 * Port
+		 */
+		private int port;
+		
+		/**
+		 * Constuctor
+		 * @param hostname
+		 * @param port
+		 */
+		public Payload(String hostname, int port) {
+			this.hostname = hostname;
+			this.port = port;
+		}
+		
+		/**
+		 * @param payloadJson
+		 * @return json converted to object payload
+		 */
+		public static Payload payloadDecoder(String payloadJson) {
+			JSONObject obj = new JSONObject(payloadJson);
+			return new Payload(obj.getString("hostname"), obj.getInt("port"));
+			
+		}
+
+		public String getHostname() {
+			return hostname;
+		}
+
+		public int getPort() {
+			return port;
+		}
 	}
 
 }

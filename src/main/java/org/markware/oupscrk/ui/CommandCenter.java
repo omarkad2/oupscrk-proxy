@@ -10,17 +10,17 @@ import java.util.ArrayList;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.markware.oupscrk.config.SSLConfig;
-import org.markware.oupscrk.dto.AckDTO;
-import org.markware.oupscrk.dto.CommandDTO;
 import org.markware.oupscrk.proxy.ProxyServer;
+import org.markware.oupscrk.ui.protocol.OupscrkProtocolAck;
+import org.markware.oupscrk.ui.protocol.OupscrkProtocolMessage;
 import org.markware.oupscrk.ui.strategy.impl.TCPClientExpositionStartegy;
 
 /**
- * Control center
+ * Command center (uses TCP socket to communicate with third party users) 
  * @author citestra
  *
  */
-public class ControlCenter {
+public class CommandCenter {
 
 	/**
 	 * Server Socket
@@ -42,7 +42,7 @@ public class ControlCenter {
 	 * @param port
 	 * @throws IOException
 	 */
-	public ControlCenter(int port, int proxyPort) throws IOException {
+	public CommandCenter(int port, int proxyPort) throws IOException {
 		this.serverSocket = new ServerSocket(port);
 		this.proxyServer = new ProxyServer(proxyPort, new SSLConfig());
 		this.running = true;
@@ -76,14 +76,14 @@ public class ControlCenter {
 	 * @throws IOException
 	 */
 	private void handleCommand(Socket clientSocket, String data) throws IOException {
-		CommandDTO request = null;
+		OupscrkProtocolMessage request = null;
 		// parse to json
 		JSONObject jsonObj = new JSONObject(data);
-		AckDTO ackToSend = new AckDTO(false, "no command threated");
+		OupscrkProtocolAck ackToSend = new OupscrkProtocolAck(false, "no command threated");
 		if (jsonObj != null) {
-			request = new CommandDTO((String) jsonObj.get("command"), jsonArrToList(jsonObj.get("args")));
+			request = new OupscrkProtocolMessage((String) jsonObj.get("command"), (String) jsonObj.get("command"));
 			switch(request.getCommand()) {
-			case "startProxy":
+			case START_PROXY:
 				proxyServer.setProxyOn(true);
 				new Thread(new Runnable() {
 					public void run() {
@@ -91,34 +91,66 @@ public class ControlCenter {
 					}
 				}).start();
 				ackToSend.setSuccess(true);
-				ackToSend = new AckDTO(true, String.valueOf(this.proxyServer.getPort()));
+				ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
 				break;
-			case "stopProxy":
+			case STOP_PROXY:
 				proxyServer.setProxyOn(false);
-				ackToSend = new AckDTO(true, String.valueOf(this.proxyServer.getPort()));
+				ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
 				break;
-			case "checkProxy":
+			case CHECK_PROXY:
 				if (this.proxyServer.isProxyOn()) {
-					ackToSend = new AckDTO(true, String.valueOf(this.proxyServer.getPort()));
+					ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
 				} else {
-					ackToSend = new AckDTO(false, String.valueOf(this.proxyServer.getPort()));
+					ackToSend = new OupscrkProtocolAck(false, String.valueOf(this.proxyServer.getPort()));
 				}
 				break;
-			case "startExpose":
+			case START_EXPOSE:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setExpositionStrategy(
-							new TCPClientExpositionStartegy("127.0.0.1", Integer.parseInt(request.getArgs().get(0))));
-					ackToSend = new AckDTO(true, "");
+							new TCPClientExpositionStartegy(request.getPayload()));
+					ackToSend = new OupscrkProtocolAck(true, "");
 				} else {
-					ackToSend = new AckDTO(false, "");
+					ackToSend = new OupscrkProtocolAck(false, "");
 				}
 				break;
-			case "stopExpose":
+			case STOP_EXPOSE:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setExpositionStrategy(null);
-					ackToSend = new AckDTO(true, "");
+					ackToSend = new OupscrkProtocolAck(true, "");
 				} else {
-					ackToSend = new AckDTO(false, "");
+					ackToSend = new OupscrkProtocolAck(false, "");
+				}
+				break;
+			case START_TAMPER_REQUEST:
+				if (proxyServer.isProxyOn()) {
+//					proxyServer.setRequestHandlingStrategy(request.getPayload());
+					ackToSend = new OupscrkProtocolAck(true, "");
+				} else {
+					ackToSend = new OupscrkProtocolAck(false, "");
+				}
+				break;
+			case STOP_TAMPER_REQUEST:
+				if (proxyServer.isProxyOn()) {
+					proxyServer.setRequestHandlingStrategy(null);
+					ackToSend = new OupscrkProtocolAck(true, "");
+				} else {
+					ackToSend = new OupscrkProtocolAck(false, "");
+				}
+				break;
+			case START_TAMPER_RESPONSE:
+				if (proxyServer.isProxyOn()) {
+//					proxyServer.setResponseHandlingStrategy(request.getPayload());
+					ackToSend = new OupscrkProtocolAck(true, "");
+				} else {
+					ackToSend = new OupscrkProtocolAck(false, "");
+				}
+				break;
+			case STOP_TAMPER_RESPONSE:
+				if (proxyServer.isProxyOn()) {
+					proxyServer.setResponseHandlingStrategy(null);
+					ackToSend = new OupscrkProtocolAck(true, "");
+				} else {
+					ackToSend = new OupscrkProtocolAck(false, "");
 				}
 				break;
 			default:
@@ -129,20 +161,4 @@ public class ControlCenter {
 		clientSocket.close();
 	}
 
-	/**
-	 * Convert json array to ArrayList
-	 * @param jsonObject
-	 * @return
-	 */
-	private ArrayList<String> jsonArrToList(Object jsonObject) {
-		ArrayList<String> list = new ArrayList<String>();   
-		JSONArray jsonArray = (JSONArray)jsonObject;
-		if (jsonArray != null) { 
-		   int len = jsonArray.length();
-		   for (int i=0;i<len;i++){ 
-		    list.add(jsonArray.get(i).toString());
-		   } 
-		} 
-		return list;
-	}
 }
