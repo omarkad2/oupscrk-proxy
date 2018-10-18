@@ -14,7 +14,7 @@
 	</properties>
 
 	<dependencies>
-	
+
 		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on -->
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
@@ -35,26 +35,62 @@
 		</dependency>
 
 	</dependencies>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>de.ntcomputer</groupId>
-				<artifactId>executable-packer-maven-plugin</artifactId>
-				<version>1.0.1</version>
-				<configuration>
-					<finalName>${project.name}-v${project.version}</finalName>
-					<mainClass>org.markware.oupscrk.OupscrkApp</mainClass>
-				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>pack-executable-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 
-		</plugins>
-	</build>
+	<!-- Profiles -->
+	<profiles>
+		<!-- Standalone Proxy -->
+		<profile>
+			<id>standalone</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>de.ntcomputer</groupId>
+						<artifactId>executable-packer-maven-plugin</artifactId>
+						<version>1.0.1</version>
+						<configuration>
+							<finalName>${project.name}-standalone-v${project.version}</finalName>
+							<mainClass>org.markware.oupscrk.ProxyStandaloneApp</mainClass>
+						</configuration>
+						<executions>
+							<execution>
+								<goals>
+									<goal>pack-executable-jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- CommandCenter Proxy(activated by default) -->
+		<profile>
+			<id>ui</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>de.ntcomputer</groupId>
+						<artifactId>executable-packer-maven-plugin</artifactId>
+						<version>1.0.1</version>
+						<configuration>
+							<finalName>${project.name}-v${project.version}</finalName>
+							<mainClass>org.markware.oupscrk.OupscrkApp</mainClass>
+						</configuration>
+						<executions>
+							<execution>
+								<goals>
+									<goal>pack-executable-jar</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>

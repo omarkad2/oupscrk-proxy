@@ -5,9 +5,7 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 import org.markware.oupscrk.config.SSLConfig;
 import org.markware.oupscrk.proxy.ProxyServer;
@@ -22,6 +20,11 @@ import org.markware.oupscrk.ui.strategy.impl.TCPClientExpositionStartegy;
  */
 public class CommandCenter {
 
+	/**
+	 * Buffer size
+	 */
+	private final static int COMMAND_BUFFER_SIZE = 1024;
+	
 	/**
 	 * Server Socket
 	 */
@@ -56,7 +59,7 @@ public class CommandCenter {
 			while(running) {
 				Socket clientSocket = this.serverSocket.accept();
 				InputStream is = clientSocket.getInputStream();
-				byte[] buffer = new byte[1024];
+				byte[] buffer = new byte[COMMAND_BUFFER_SIZE];
 				int read;
 				StringBuffer sb = new StringBuffer();
 				while((read = is.read(buffer)) != -1) {
@@ -77,11 +80,11 @@ public class CommandCenter {
 	 */
 	private void handleCommand(Socket clientSocket, String data) throws IOException {
 		OupscrkProtocolMessage request = null;
-		// parse to json
+		// parse json command
 		JSONObject jsonObj = new JSONObject(data);
 		OupscrkProtocolAck ackToSend = new OupscrkProtocolAck(false, "no command threated");
 		if (jsonObj != null) {
-			request = new OupscrkProtocolMessage((String) jsonObj.get("command"), (String) jsonObj.get("command"));
+			request = new OupscrkProtocolMessage((String) jsonObj.get("command"), (String) jsonObj.get("payload"));
 			switch(request.getCommand()) {
 			case START_PROXY:
 				proxyServer.setProxyOn(true);
@@ -90,7 +93,6 @@ public class CommandCenter {
 						proxyServer.listen();
 					}
 				}).start();
-				ackToSend.setSuccess(true);
 				ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
 				break;
 			case STOP_PROXY:
