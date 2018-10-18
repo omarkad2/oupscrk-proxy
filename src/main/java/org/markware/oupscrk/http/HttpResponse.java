@@ -61,7 +61,7 @@ public class HttpResponse {
     public void tamperWithHeaders(Map<String, String> tamperedHeaders, List<String> immutableHeaders) {
     	if (tamperedHeaders != null) {
     		tamperedHeaders.entrySet().stream().forEach((entry) -> {
-    			if (immutableHeaders.contains(entry.getKey())) {
+    			if (!immutableHeaders.contains(entry.getKey())) {
     				this.headers.put(entry.getKey(), entry.getValue());
     			}
     		});
@@ -75,7 +75,8 @@ public class HttpResponse {
     public void tamperWithBody(Map<String, String> replacements) {
     	if (replacements != null) {
     		replacements.entrySet().stream().forEach((entry) -> {
-    			this.plainResponseBody.toString().replaceAll(entry.getKey(), entry.getValue());
+    			this.plainResponseBody = 
+    					this.plainResponseBody.replaceAll(entry.getKey(), entry.getValue());
     		});
     	}
     }

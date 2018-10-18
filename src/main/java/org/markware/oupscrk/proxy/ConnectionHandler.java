@@ -107,6 +107,7 @@ public class ConnectionHandler implements Runnable {
 	
 	public ConnectionHandler withClientSocket(Socket clientSocket) {
 		try{
+			this.clientSocket = clientSocket;
 			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
 			this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 		} 
@@ -195,12 +196,15 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private void handleRequest(HttpRequest httpRequest) {
 		try {
-			URL url = httpRequest.getUrl();
 			String protocolHttp = httpRequest.getScheme();
 
-			if (url.toString().contains("oupscrk.local")) {
+			if (httpRequest.getUrl().toString().contains("oupscrk.local")) {
 				sendCaCert(httpRequest);
 			} else {
+				// Tamper with Request
+				httpRequest = tamperHttpRequest(httpRequest);
+				
+				URL url = httpRequest.getUrl();
 				// HTTP Connection
 				HttpURLConnection conn;
 				if ("https".equals(protocolHttp)) {
@@ -208,9 +212,6 @@ public class ConnectionHandler implements Runnable {
 				} else {
 					conn = (HttpURLConnection)url.openConnection();
 				}
-
-				// Tamper with Request
-				httpRequest = tamperHttpRequest(httpRequest);
 				
 				// Set Request Method
 				conn.setRequestMethod(httpRequest.getRequestType());

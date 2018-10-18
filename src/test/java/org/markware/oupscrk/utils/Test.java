@@ -29,6 +29,8 @@ public class Test {
     	
     	System.out.println(Arrays.toString(encodedBody));
     	System.out.println(Arrays.toString(CompressionUtils.encodeContentBody(decodedBody, "gzip")));
+    	
+    	System.out.println("Oupscrk test sdf klqsdf oupscrk oupscrK".replaceAll("[oO]upscrk", "oussama"));
     }
     
 }

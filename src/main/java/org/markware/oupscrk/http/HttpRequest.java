@@ -1,6 +1,7 @@
 package org.markware.oupscrk.http;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Hashtable;
 import java.util.List;
@@ -106,9 +107,7 @@ public class HttpRequest {
     
     public void interpretRawUri() throws IOException {
     	if (this.path.startsWith("/")) {
-			this.url = this.query != null && !this.query.isEmpty() ? 
-					new URL(String.format("https://%s%s?%s", getHeaderParam("Host"), this.path, this.query)) :
-					new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
+    		buildUrl();
 		} else {
 			String[] pieces;
 			if (this.path.startsWith("https://")) {
@@ -143,7 +142,7 @@ public class HttpRequest {
     public void tamperWithHeaders(Map<String, String> tamperedHeaders, List<String> immutableHeaders) {
     	if (tamperedHeaders != null) {
     		tamperedHeaders.entrySet().stream().forEach((entry) -> {
-    			if (immutableHeaders.contains(entry.getKey())) {
+    			if (!immutableHeaders.contains(entry.getKey())) {
     				this.headers.put(entry.getKey(), entry.getValue());
     			}
     		});
@@ -159,10 +158,19 @@ public class HttpRequest {
     		replacements.entrySet().stream().forEach((entry) -> {
     			this.body = new StringBuffer(
     					this.body.toString().replaceAll(entry.getKey(), entry.getValue()));
+    			this.query = this.query.replaceAll(entry.getKey(), entry.getValue());
+    			try {
+    				buildUrl();
+				} catch (MalformedURLException e) {	}
     		});
     	}
     }
     
+    private void buildUrl() throws MalformedURLException {
+    	this.url = this.query != null && !this.query.isEmpty() ? 
+				new URL(String.format("https://%s%s?%s", getHeaderParam("Host"), this.path, this.query)) :
+				new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
+    }
     // ******************************* GETTERS ******************************************
     public String getRequestLine() {
         return requestLine;

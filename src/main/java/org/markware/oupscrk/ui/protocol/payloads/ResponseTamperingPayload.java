@@ -65,12 +65,14 @@ public class ResponseTamperingPayload {
 	 */
 	public static Map<String, String> toMap(JSONObject jsonobj)  throws JSONException {
        Map<String, String> map = new HashMap<String, String>();
-       jsonobj.keySet().stream().forEach((key) -> {
-       	Object value = jsonobj.get(key);
-       	if (value instanceof String) {
-       		map.put(key, (String) value);
-       	}
-       });
+       if (jsonobj != null) {
+    	   jsonobj.keySet().stream().forEach((key) -> {
+    		   Object value = jsonobj.get(key);
+    		   if (value instanceof String) {
+    			   map.put(key, (String) value);
+    		   }
+    	   });
+       }
        return map;
    }
 
