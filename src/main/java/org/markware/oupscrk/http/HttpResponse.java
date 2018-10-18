@@ -54,6 +54,32 @@ public class HttpResponse {
 		return this.statusLine != null && !this.statusLine.isEmpty() && this.headers!= null && !this.headers.isEmpty();
 	}
 	
+    /**
+     * Tamper with headers
+     * @param tamperedHeaders
+     */
+    public void tamperWithHeaders(Map<String, String> tamperedHeaders, List<String> immutableHeaders) {
+    	if (tamperedHeaders != null) {
+    		tamperedHeaders.entrySet().stream().forEach((entry) -> {
+    			if (immutableHeaders.contains(entry.getKey())) {
+    				this.headers.put(entry.getKey(), entry.getValue());
+    			}
+    		});
+    	}
+    }
+    
+    /**
+     * Tamper with body
+     * @param replacements
+     */
+    public void tamperWithBody(Map<String, String> replacements) {
+    	if (replacements != null) {
+    		replacements.entrySet().stream().forEach((entry) -> {
+    			this.plainResponseBody.toString().replaceAll(entry.getKey(), entry.getValue());
+    		});
+    	}
+    }
+    
 	// ******************************* GETTERS / SETTERS ******************************************
 	public String getStatusLine() {
 		return statusLine;
@@ -108,7 +134,9 @@ public class HttpResponse {
 		this.plainResponseBody = plainResponseBody;
 	}
 
-	public byte[] retrieveEncodedResponseBody() {
+	public byte[] retrieveEncodedResponseBody() throws IOException {
+		this.encodedResponseBody = CompressionUtils.encodeContentBody(
+				this.plainResponseBody.getBytes(StandardCharsets.UTF_8), this.contentEncoding);
 		return encodedResponseBody;
 	}
 

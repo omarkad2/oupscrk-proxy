@@ -11,6 +11,9 @@ import org.markware.oupscrk.config.SSLConfig;
 import org.markware.oupscrk.proxy.ProxyServer;
 import org.markware.oupscrk.ui.protocol.OupscrkProtocolAck;
 import org.markware.oupscrk.ui.protocol.OupscrkProtocolMessage;
+import org.markware.oupscrk.ui.protocol.payloads.ProxyInfoPayload;
+import org.markware.oupscrk.ui.strategy.impl.DefaultRequestHandlingStrategy;
+import org.markware.oupscrk.ui.strategy.impl.DefaultResponseHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.impl.TCPClientExpositionStartegy;
 
 /**
@@ -81,8 +84,9 @@ public class CommandCenter {
 	private void handleCommand(Socket clientSocket, String data) throws IOException {
 		OupscrkProtocolMessage request = null;
 		// parse json command
+		//TODO: fail or success takes in parameter a Payload and convert it to string
 		JSONObject jsonObj = new JSONObject(data);
-		OupscrkProtocolAck ackToSend = new OupscrkProtocolAck(false, "no command threated");
+		OupscrkProtocolAck ackToSend = OupscrkProtocolAck.failAck("no command threated");
 		if (jsonObj != null) {
 			request = new OupscrkProtocolMessage((String) jsonObj.get("command"), (String) jsonObj.get("payload"));
 			switch(request.getCommand()) {
@@ -93,66 +97,72 @@ public class CommandCenter {
 						proxyServer.listen();
 					}
 				}).start();
-				ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
+				ackToSend = OupscrkProtocolAck.successAck(
+						ProxyInfoPayload.payloadEncoder(null, this.proxyServer.getPort()));
 				break;
 			case STOP_PROXY:
 				proxyServer.setProxyOn(false);
-				ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
+				ackToSend = OupscrkProtocolAck.successAck(
+						ProxyInfoPayload.payloadEncoder(null, this.proxyServer.getPort()));
 				break;
 			case CHECK_PROXY:
 				if (this.proxyServer.isProxyOn()) {
-					ackToSend = new OupscrkProtocolAck(true, String.valueOf(this.proxyServer.getPort()));
+					ackToSend = OupscrkProtocolAck.successAck(
+							ProxyInfoPayload.payloadEncoder(null, this.proxyServer.getPort()));
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, String.valueOf(this.proxyServer.getPort()));
+					ackToSend = OupscrkProtocolAck.failAck(
+							ProxyInfoPayload.payloadEncoder(null, this.proxyServer.getPort()));
 				}
 				break;
 			case START_EXPOSE:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setExpositionStrategy(
 							new TCPClientExpositionStartegy(request.getPayload()));
-					ackToSend = new OupscrkProtocolAck(true, "");
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			case STOP_EXPOSE:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setExpositionStrategy(null);
-					ackToSend = new OupscrkProtocolAck(true, "");
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			case START_TAMPER_REQUEST:
 				if (proxyServer.isProxyOn()) {
-//					proxyServer.setRequestHandlingStrategy(request.getPayload());
-					ackToSend = new OupscrkProtocolAck(true, "");
+					proxyServer.setRequestHandlingStrategy(
+							new DefaultRequestHandlingStrategy(request.getPayload()));
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			case STOP_TAMPER_REQUEST:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setRequestHandlingStrategy(null);
-					ackToSend = new OupscrkProtocolAck(true, "");
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			case START_TAMPER_RESPONSE:
 				if (proxyServer.isProxyOn()) {
-//					proxyServer.setResponseHandlingStrategy(request.getPayload());
-					ackToSend = new OupscrkProtocolAck(true, "");
+					proxyServer.setResponseHandlingStrategy(
+							new DefaultResponseHandlingStrategy(request.getPayload()));
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			case STOP_TAMPER_RESPONSE:
 				if (proxyServer.isProxyOn()) {
 					proxyServer.setResponseHandlingStrategy(null);
-					ackToSend = new OupscrkProtocolAck(true, "");
+					ackToSend = OupscrkProtocolAck.successAck("");
 				} else {
-					ackToSend = new OupscrkProtocolAck(false, "");
+					ackToSend = OupscrkProtocolAck.failAck("");
 				}
 				break;
 			default:

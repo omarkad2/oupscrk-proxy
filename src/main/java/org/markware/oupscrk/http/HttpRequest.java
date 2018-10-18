@@ -3,6 +3,8 @@ package org.markware.oupscrk.http;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Request Parser
@@ -134,6 +136,33 @@ public class HttpRequest {
 		}
     }
 
+    /**
+     * Tamper with headers
+     * @param tamperedHeaders
+     */
+    public void tamperWithHeaders(Map<String, String> tamperedHeaders, List<String> immutableHeaders) {
+    	if (tamperedHeaders != null) {
+    		tamperedHeaders.entrySet().stream().forEach((entry) -> {
+    			if (immutableHeaders.contains(entry.getKey())) {
+    				this.headers.put(entry.getKey(), entry.getValue());
+    			}
+    		});
+    	}
+    }
+    
+    /**
+     * Tamper with body
+     * @param replacements
+     */
+    public void tamperWithBody(Map<String, String> replacements) {
+    	if (replacements != null) {
+    		replacements.entrySet().stream().forEach((entry) -> {
+    			this.body = new StringBuffer(
+    					this.body.toString().replaceAll(entry.getKey(), entry.getValue()));
+    		});
+    	}
+    }
+    
     // ******************************* GETTERS ******************************************
     public String getRequestLine() {
         return requestLine;
