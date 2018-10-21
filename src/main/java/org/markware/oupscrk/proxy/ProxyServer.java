@@ -6,6 +6,7 @@ import java.net.Socket;
 
 import org.markware.oupscrk.config.SSLConfig;
 import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
+import org.markware.oupscrk.ui.strategy.ReplayAttackStrategy;
 import org.markware.oupscrk.ui.strategy.RequestHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.ResponseHandlingStrategy;
 
@@ -52,6 +53,11 @@ public class ProxyServer {
 	private ResponseHandlingStrategy responseHandlingStrategy;
 	
 	/**
+	 * Replay attack strategy
+	 */
+	private ReplayAttackStrategy replayAttackStrategy;
+	
+	/**
 	 * Constructor
 	 * @param port
 	 * @param sslResource
@@ -70,13 +76,18 @@ public class ProxyServer {
 	public void listen() {
 		while(this.proxyOn) {
 			try {
+				if (this.replayAttackStrategy != null && this.replayAttackStrategy.isEngaged()) {
+					this.setProxyOn(false);
+					continue;
+				}
 				Socket clientSocket = proxySocket.accept();
 				ConnectionHandler connectionHandler = 
 						new ConnectionHandler().withClientSocket(clientSocket)
 											   .withSSLConfig(this.sslResource)
 											   .withExpositionStrategy(this.expositionStrategy)
 											   .withRequestHandlingStrategy(this.requestHandlingStrategy)
-											   .withResponseHandlingStrategy(this.responseHandlingStrategy);
+											   .withResponseHandlingStrategy(this.responseHandlingStrategy)
+											   .withReplayAttackStrategy(this.replayAttackStrategy);
 				Thread t = new Thread(connectionHandler);
 				t.start();
 			} catch (IOException e) {
@@ -142,4 +153,13 @@ public class ProxyServer {
 		this.responseHandlingStrategy = responseHandlingStrategy;
 	}
 
+	public ReplayAttackStrategy getReplayAttackStrategy() {
+		return replayAttackStrategy;
+	}
+
+	public void setReplayAttackStrategy(ReplayAttackStrategy replayAttackStrategy) {
+		this.replayAttackStrategy = replayAttackStrategy;
+	}
+
+	
 }

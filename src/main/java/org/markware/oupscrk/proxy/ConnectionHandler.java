@@ -37,6 +37,7 @@ import org.markware.oupscrk.http.HttpResponse;
 import org.markware.oupscrk.http.parser.HttpRequestParser;
 import org.markware.oupscrk.http.parser.HttpResponseParser;
 import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
+import org.markware.oupscrk.ui.strategy.ReplayAttackStrategy;
 import org.markware.oupscrk.ui.strategy.RequestHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.ResponseHandlingStrategy;
 import org.markware.oupscrk.utils.SecurityUtils;
@@ -101,6 +102,11 @@ public class ConnectionHandler implements Runnable {
 	private ResponseHandlingStrategy responseHandlingStrategy;
 	
 	/**
+	 * Replay attack strategy
+	 */
+	private ReplayAttackStrategy replayAttackStrategy;
+	
+	/**
 	 * Default Constructor
 	 */
 	public ConnectionHandler() {}
@@ -161,6 +167,17 @@ public class ConnectionHandler implements Runnable {
 	}
 	
 	/**
+	 * Set replay attack strategy
+	 * @param replayAttackStrategy
+	 * @return
+	 */
+	public ConnectionHandler withReplayAttackStrategy(
+			ReplayAttackStrategy replayAttackStrategy) {
+		this.replayAttackStrategy = replayAttackStrategy;
+		return this;
+	}
+	
+	/**
 	 * Run method
 	 */
 	@Override
@@ -201,6 +218,9 @@ public class ConnectionHandler implements Runnable {
 			if (httpRequest.getUrl().toString().contains("oupscrk.local")) {
 				sendCaCert(httpRequest);
 			} else {
+				// Engage replay attack ?
+				engageReplayAttack(httpRequest);
+				
 				// Tamper with Request
 				httpRequest = tamperHttpRequest(httpRequest);
 				
@@ -417,6 +437,16 @@ public class ConnectionHandler implements Runnable {
 			this.responseHandlingStrategy.updateResponse(httpResponse);
 		}
 		return httpResponse;
+	}
+	
+	/**
+	 * Engage replay attack
+	 * @param httpRequestCandidate
+	 */
+	private void engageReplayAttack(HttpRequest httpRequestCandidate) {
+		if (this.replayAttackStrategy != null) {
+			this.replayAttackStrategy.replay(httpRequestCandidate);
+		}
 	}
 	
 	/**

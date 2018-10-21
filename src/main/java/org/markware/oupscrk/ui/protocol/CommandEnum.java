@@ -18,7 +18,11 @@ public enum CommandEnum {
 	
 	START_TAMPER_RESPONSE("startTamperResponse"),
 
-	STOP_TAMPER_RESPONSE("stopTamperResponse");
+	STOP_TAMPER_RESPONSE("stopTamperResponse"),
+	
+	START_REPLAY_ATTACK("startReplayAttack"),
+	
+	STOP_REPLAY_ATTACK("stopReplayAttack");
 
 	/**
 	 * command value

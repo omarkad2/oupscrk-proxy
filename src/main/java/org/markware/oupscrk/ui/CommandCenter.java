@@ -12,6 +12,7 @@ import org.markware.oupscrk.proxy.ProxyServer;
 import org.markware.oupscrk.ui.protocol.OupscrkProtocolAck;
 import org.markware.oupscrk.ui.protocol.OupscrkProtocolMessage;
 import org.markware.oupscrk.ui.protocol.payloads.ProxyInfoPayload;
+import org.markware.oupscrk.ui.strategy.impl.DefaultReplayAttackStrategy;
 import org.markware.oupscrk.ui.strategy.impl.DefaultRequestHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.impl.DefaultResponseHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.impl.TCPClientExpositionStartegy;
@@ -164,6 +165,21 @@ public class CommandCenter {
 				} else {
 					ackToSend = OupscrkProtocolAck.failAck("");
 				}
+				break;
+			case START_REPLAY_ATTACK:
+				// Uses default proxy to intercept initial request
+				// Establish its own proxy to launch the attack
+				if (proxyServer.isProxyOn()) {
+					proxyServer.setReplayAttackStrategy(
+							new DefaultReplayAttackStrategy(request.getPayload()));
+					ackToSend = OupscrkProtocolAck.successAck("");
+				} else {
+					ackToSend = OupscrkProtocolAck.failAck("");
+				}
+				break;
+			case STOP_REPLAY_ATTACK:
+				proxyServer.setReplayAttackStrategy(null);
+				ackToSend = OupscrkProtocolAck.successAck("");
 				break;
 			default:
 				break;

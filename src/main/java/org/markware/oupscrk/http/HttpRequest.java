@@ -166,11 +166,45 @@ public class HttpRequest {
     	}
     }
     
+    /**
+     * @param str
+     * @return if body or query of the request contains a string (str)
+     */
+    public boolean containString(String str) {
+    	boolean contains = false;
+    	if (str != null && str.length() > 0 && (this.body != null || this.query != null)) {
+    		return this.body.toString().contains(str) || this.query.contains(str);
+    	}
+    	return contains;
+    }
+    
+    public HttpRequest replaceString(String str, String replacement) {
+    	HttpRequest httpRequest = this;
+    	if (str != null && replacement != null && (this.body != null || this.query != null)) {
+    		httpRequest.setQuery(this.query.replaceAll(str, replacement));
+    		httpRequest.setBody(new StringBuffer(this.body.toString().replaceAll(str, replacement)));
+    	}
+    	return httpRequest;
+    }
+    
+    public StringBuffer getBody() {
+		return body;
+	}
+
+	public void setBody(StringBuffer body) {
+		this.body = body;
+	}
+
+	/**
+     * Build url 
+     * @throws MalformedURLException
+     */
     private void buildUrl() throws MalformedURLException {
     	this.url = this.query != null && !this.query.isEmpty() ? 
 				new URL(String.format("https://%s%s?%s", getHeaderParam("Host"), this.path, this.query)) :
 				new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
     }
+    
     // ******************************* GETTERS ******************************************
     public String getRequestLine() {
         return requestLine;
