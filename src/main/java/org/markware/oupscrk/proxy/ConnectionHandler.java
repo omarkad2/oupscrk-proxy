@@ -7,7 +7,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
@@ -111,6 +110,11 @@ public class ConnectionHandler implements Runnable {
 	 */
 	public ConnectionHandler() {}
 	
+	/**
+	 * Set client socket
+	 * @param sslResource
+	 * @return connection handler
+	 */
 	public ConnectionHandler withClientSocket(Socket clientSocket) {
 		try{
 			this.clientSocket = clientSocket;
@@ -246,17 +250,23 @@ public class ConnectionHandler implements Runnable {
 				// Send body if there is one
 				String requestBody = httpRequest.getMessageBody();
 				if (requestBody != null && !requestBody.isEmpty()) {
+					byte[] postData = requestBody.getBytes(StandardCharsets.UTF_8);
 					conn.setDoOutput(true);
-					OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);    
-					osw.write(requestBody);
+					conn.setInstanceFollowRedirects( false );
+					conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8"); 
+					conn.setRequestProperty("Content-Length", String.valueOf(postData.length));
+					conn.setUseCaches(false);
+					DataOutputStream osw = new DataOutputStream(conn.getOutputStream());    
+					osw.write(postData);
 					osw.flush();
 					osw.close(); 
 				}
 
-				conn.setReadTimeout(10000);
-				conn.setConnectTimeout(10000);
+//				conn.setReadTimeout(10000);
+//				conn.setConnectTimeout(10000);
 
-				conn.connect();
+//				conn.connect();
+				System.out.println(conn.getResponseCode());
 
 				HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 				

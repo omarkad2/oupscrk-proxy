@@ -76,10 +76,6 @@ public class ProxyServer {
 	public void listen() {
 		while(this.proxyOn) {
 			try {
-				if (this.replayAttackStrategy != null && this.replayAttackStrategy.isEngaged()) {
-					this.setProxyOn(false);
-					continue;
-				}
 				Socket clientSocket = proxySocket.accept();
 				ConnectionHandler connectionHandler = 
 						new ConnectionHandler().withClientSocket(clientSocket)

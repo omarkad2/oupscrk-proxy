@@ -2,6 +2,7 @@ package org.markware.oupscrk.http.parser;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import org.markware.oupscrk.http.HttpRequest;
 
@@ -21,6 +22,7 @@ public class HttpRequestParser {
 
 		HttpRequest httpRequest = new HttpRequest();
 		
+		long startTime = System.nanoTime();
 		// REQUEST LINE
 		setRequestLine(httpRequest, reader);
 
@@ -28,10 +30,12 @@ public class HttpRequestParser {
 		setHeaders(httpRequest, reader);
 
 		// BODY
-//		 setBody(httpRequest, reader);
+		setBody(httpRequest, reader);
 
 		httpRequest.interpretRawUri();
-		System.out.println(String.valueOf(httpRequest.getUrl()));
+		
+		long endTime   = System.nanoTime();
+		long totalTime = TimeUnit.NANOSECONDS.toSeconds(endTime - startTime);
 		return httpRequest;
 	}
 
@@ -70,11 +74,15 @@ public class HttpRequestParser {
 	 * @throws IOException
 	 */
 	private static void setBody(HttpRequest httpRequest, BufferedReader reader) throws IOException {
-		String bodyLine = reader.readLine();
-		while (bodyLine != null && !bodyLine.isEmpty()) {
-			httpRequest.appendMessageBody(bodyLine);
-			bodyLine = reader.readLine();
+		if (reader.ready()) {
+			String bodyLine = reader.readLine();
+			while (bodyLine != null && !bodyLine.isEmpty()) {
+				System.out.println(bodyLine);
+				httpRequest.appendMessageBody(bodyLine);
+				bodyLine = reader.readLine();
+			}
 		}
+		
 	}
 
 }
