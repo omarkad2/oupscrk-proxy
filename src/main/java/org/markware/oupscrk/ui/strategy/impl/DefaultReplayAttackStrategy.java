@@ -1,6 +1,7 @@
 package org.markware.oupscrk.ui.strategy.impl;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.Socket;
@@ -77,6 +78,7 @@ public class DefaultReplayAttackStrategy implements ReplayAttackStrategy {
 						// Set word instead of seed
 						HttpRequest httpRequest = 
 								initialHttpRequest.replaceString(this.payload.getSeed(), word);
+						
 						// Send request and get response Proxy -> Server
 						String protocolHttp = httpRequest.getScheme();
 
@@ -101,23 +103,24 @@ public class DefaultReplayAttackStrategy implements ReplayAttackStrategy {
 
 						// Send body if there is one
 						String requestBody = httpRequest.getMessageBody();
+						System.out.println("Word : " + requestBody);
 						if (requestBody != null && !requestBody.isEmpty()) {
 							conn.setDoOutput(true);
-							OutputStreamWriter osw = new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8);    
+							OutputStream os = conn.getOutputStream();
+							OutputStreamWriter osw = new OutputStreamWriter(os, StandardCharsets.UTF_8);    
 							osw.write(requestBody);
 							osw.flush();
 							osw.close(); 
+							os.close();
 						}
 
-						conn.setReadTimeout(10000);
-						conn.setConnectTimeout(10000);
-
-						conn.connect();
+//						conn.connect();
 
 						HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 						
 						// Send results back (request + response)
 						JSONObject combined = new JSONObject();
+						combined.put("word", word);
 						combined.put("request", new JSONObject(httpRequest));
 						combined.put("response", new JSONObject(httpResponse));
 						out.write(combined.toString());

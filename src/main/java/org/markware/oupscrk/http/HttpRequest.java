@@ -81,6 +81,25 @@ public class HttpRequest {
         headers = new Hashtable<String, String>();
         body = new StringBuffer();
     }
+    
+    /**
+     * Copy Constructor
+     * @param copyFrom
+     */
+    public HttpRequest(HttpRequest copyFrom) {
+    	this.requestLine = copyFrom.getRequestLine();
+    	this.command = copyFrom.getRequestType();
+    	this.scheme = copyFrom.getScheme();
+    	this.path = copyFrom.getPath();
+    	this.query = copyFrom.getQuery();
+    	this.hostname = copyFrom.getHostname();
+    	this.port = copyFrom.getPort();
+    	this.rawUri = copyFrom.getRawUri();
+    	this.url = copyFrom.getUrl();
+    	this.httpVersion = copyFrom.getHttpVersion();
+    	this.headers = copyFrom.getHeaders();
+    	this.body = copyFrom.getBody();
+    }
 
     /**
      * Append header line to the rest of headers
@@ -179,7 +198,7 @@ public class HttpRequest {
     }
     
     public HttpRequest replaceString(String str, String replacement) {
-    	HttpRequest httpRequest = this;
+    	HttpRequest httpRequest = new HttpRequest(this);
     	if (str != null && replacement != null && (this.body != null || this.query != null)) {
     		httpRequest.setQuery(this.query.replaceAll(str, replacement));
     		httpRequest.setBody(new StringBuffer(this.body.toString().replaceAll(str, replacement)));
