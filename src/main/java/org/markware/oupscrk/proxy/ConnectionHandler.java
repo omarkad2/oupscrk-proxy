@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.Socket;
 import java.net.URL;
@@ -250,23 +251,15 @@ public class ConnectionHandler implements Runnable {
 				// Send body if there is one
 				String requestBody = httpRequest.getMessageBody();
 				if (requestBody != null && !requestBody.isEmpty()) {
-					byte[] postData = requestBody.getBytes(StandardCharsets.UTF_8);
 					conn.setDoOutput(true);
-					conn.setInstanceFollowRedirects( false );
-					conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8"); 
-					conn.setRequestProperty("Content-Length", String.valueOf(postData.length));
-					conn.setUseCaches(false);
-					DataOutputStream osw = new DataOutputStream(conn.getOutputStream());    
+					OutputStream os = conn.getOutputStream();
+					byte[] postData = requestBody.getBytes(StandardCharsets.UTF_8);
+					DataOutputStream osw = new DataOutputStream(os);    
 					osw.write(postData);
 					osw.flush();
 					osw.close(); 
+					os.close();
 				}
-
-//				conn.setReadTimeout(10000);
-//				conn.setConnectTimeout(10000);
-
-//				conn.connect();
-				System.out.println(conn.getResponseCode());
 
 				HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 				
