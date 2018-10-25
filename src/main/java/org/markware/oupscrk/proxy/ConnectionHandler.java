@@ -119,6 +119,7 @@ public class ConnectionHandler implements Runnable {
 	public ConnectionHandler withClientSocket(Socket clientSocket) {
 		try{
 			this.clientSocket = clientSocket;
+			this.clientSocket.setSoTimeout(20000);
 			this.proxyToClientBr = new BufferedReader(new InputStreamReader(this.clientSocket.getInputStream()));
 			this.proxyToClientBw = new DataOutputStream(this.clientSocket.getOutputStream());
 		} 
@@ -247,7 +248,6 @@ public class ConnectionHandler implements Runnable {
 						conn.setRequestProperty(key, value);
 					});
 				}
-				conn.setRequestProperty("User-Agent", "Wget/5.0");
 
 				// Send body if there is one
 				String requestBody = httpRequest.getMessageBody();
@@ -262,6 +262,11 @@ public class ConnectionHandler implements Runnable {
 					os.close();
 				}
 
+				conn.setReadTimeout(10000);
+				conn.setConnectTimeout(10000);
+
+				conn.connect();
+				
 				HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 				
 				if (httpResponse.isNotBlank()) {
