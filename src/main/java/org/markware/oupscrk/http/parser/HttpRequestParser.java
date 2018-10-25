@@ -51,6 +51,7 @@ public class HttpRequestParser {
 			throw new IOException("Invalid Request-Line: " + requestLine);
 		}
 		String[] requestLineParts = requestLine.split(" ");
+		httpRequest.setRequestLine(requestLine);
 		httpRequest.setCommand(requestLineParts[0]);
 		httpRequest.setRawUri(requestLineParts[1]);
 		httpRequest.setHttpVersion(requestLineParts[2]);

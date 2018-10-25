@@ -247,6 +247,7 @@ public class ConnectionHandler implements Runnable {
 						conn.setRequestProperty(key, value);
 					});
 				}
+				conn.setRequestProperty("User-Agent", "Wget/5.0");
 
 				// Send body if there is one
 				String requestBody = httpRequest.getMessageBody();
@@ -271,6 +272,7 @@ public class ConnectionHandler implements Runnable {
 					this.proxyToClientBw.write(String.format("%s\r\n", httpResponse.getStatusLine()).getBytes(StandardCharsets.UTF_8));
 					
 					// send headers (filtered)
+					System.out.println(httpRequest.getRequestLine() + " : " + conn.getContentType());
 					for (Entry<String, String> header : filterHeaders(httpResponse.getHeaders()).entrySet()) {
 						this.proxyToClientBw.write(
 								new StringBuilder().append(header.getKey())
@@ -393,10 +395,10 @@ public class ConnectionHandler implements Runnable {
 	 */
 	private Map<String, String> filterHeaders(Hashtable<String, String> headers) {
 		Entry<String, String> allowedEncodings = 
-				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "gzip, deflate, identity, x-gzip");
+				new AbstractMap.SimpleEntry<String, String>("Accept-Encoding", "identity, gzip, deflate, x-gzip");
 		return headers.entrySet().stream().filter((header) -> !HEADERS_TO_REMOVE.contains(header.getKey()))
 									.map((header) -> "Accept-Encoding".equals(header.getKey()) ? allowedEncodings : header)
-								   .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+								    .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
 	}
 	
 	/**
