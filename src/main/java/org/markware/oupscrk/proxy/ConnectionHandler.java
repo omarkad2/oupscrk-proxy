@@ -277,7 +277,6 @@ public class ConnectionHandler implements Runnable {
 					this.proxyToClientBw.write(String.format("%s\r\n", httpResponse.getStatusLine()).getBytes(StandardCharsets.UTF_8));
 					
 					// send headers (filtered)
-					System.out.println(httpRequest.getRequestLine() + " : " + conn.getContentType());
 					for (Entry<String, String> header : filterHeaders(httpResponse.getHeaders()).entrySet()) {
 						this.proxyToClientBw.write(
 								new StringBuilder().append(header.getKey())

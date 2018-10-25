@@ -136,8 +136,8 @@ public class HttpResponse {
 	}
 
 	public byte[] retrieveEncodedResponseBody() throws IOException {
-		this.encodedResponseBody = CompressionUtils.encodeContentBody(
-				this.plainResponseBody.getBytes(StandardCharsets.UTF_8), this.contentEncoding);
+//		this.encodedResponseBody = CompressionUtils.encodeContentBody(
+//				this.plainResponseBody.getBytes(StandardCharsets.UTF_8), this.contentEncoding);
 		return encodedResponseBody;
 	}
 
