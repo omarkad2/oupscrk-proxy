@@ -1,5 +1,6 @@
 package org.markware.oupscrk.ui.strategy.impl;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -33,12 +34,16 @@ public class DefaultResponseHandlingStrategy implements ResponseHandlingStrategy
 	 * {@inheritDoc}
 	 */
 	@Override
-	public HttpResponse updateResponse(HttpResponse httpResponse) {
+	public HttpResponse updateResponse(HttpResponse httpResponse, String contentType) {
 		if (this.payload != null) {
 			// Tamper with headers
 			httpResponse.tamperWithHeaders(this.payload.getHeadersToTamper(), UNAUTHORIZED_TAMPER_HEADERS);
 			// Tamper with body
-			httpResponse.tamperWithBody(this.payload.getBodyReplacements());
+			try {
+				httpResponse.tamperWithBody(this.payload.getBodyReplacements(), contentType);
+			} catch (IOException e) {
+				System.out.println("Unable to tamper with response body");
+			}
 		}
 		return httpResponse;
 	}

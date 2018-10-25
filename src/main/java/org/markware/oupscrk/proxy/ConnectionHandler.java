@@ -271,7 +271,7 @@ public class ConnectionHandler implements Runnable {
 				
 				if (httpResponse.isNotBlank()) {
 					// Tamper with Response
-					httpResponse = tamperHttpResponse(httpResponse);
+					httpResponse = tamperHttpResponse(httpResponse, conn.getContentType());
 					
 					// Send status line
 					this.proxyToClientBw.write(String.format("%s\r\n", httpResponse.getStatusLine()).getBytes(StandardCharsets.UTF_8));
@@ -301,7 +301,6 @@ public class ConnectionHandler implements Runnable {
 					}
 					this.proxyToClientBw.flush();
 					displayInfo(httpRequest, httpResponse);
-					
 				}
 			}
 		} catch(IOException | DataFormatException | CertificateEncodingException e) {
@@ -441,9 +440,9 @@ public class ConnectionHandler implements Runnable {
 	 * @param httpResponse
 	 * @return tampered response
 	 */
-	private HttpResponse tamperHttpResponse(HttpResponse httpResponse) {
+	private HttpResponse tamperHttpResponse(HttpResponse httpResponse, String contentType) {
 		if (this.responseHandlingStrategy != null) {
-			this.responseHandlingStrategy.updateResponse(httpResponse);
+			this.responseHandlingStrategy.updateResponse(httpResponse, contentType);
 		}
 		return httpResponse;
 	}

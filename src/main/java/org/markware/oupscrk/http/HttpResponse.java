@@ -71,13 +71,16 @@ public class HttpResponse {
     /**
      * Tamper with body
      * @param replacements
+     * @throws IOException 
      */
-    public void tamperWithBody(Map<String, String> replacements) {
-    	if (replacements != null) {
+    public void tamperWithBody(Map<String, String> replacements, String contentType) throws IOException {
+    	if (replacements != null && "text/html".equalsIgnoreCase(contentType)) {
     		replacements.entrySet().stream().forEach((entry) -> {
     			this.plainResponseBody = 
     					this.plainResponseBody.replaceAll(entry.getKey(), entry.getValue());
     		});
+    		this.encodedResponseBody = CompressionUtils.encodeContentBody(
+    				this.plainResponseBody.getBytes(StandardCharsets.UTF_8), this.contentEncoding);
     	}
     }
     
@@ -136,8 +139,6 @@ public class HttpResponse {
 	}
 
 	public byte[] retrieveEncodedResponseBody() throws IOException {
-//		this.encodedResponseBody = CompressionUtils.encodeContentBody(
-//				this.plainResponseBody.getBytes(StandardCharsets.UTF_8), this.contentEncoding);
 		return encodedResponseBody;
 	}
 
