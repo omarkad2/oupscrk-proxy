@@ -6,6 +6,7 @@ import org.markware.oupscrk.ui.CommandCenter;
 
 /**
  * Main program
+ * 
  * @author citestra
  *
  */
@@ -13,6 +14,7 @@ public class OupscrkApp {
 
 	/**
 	 * Main method
+	 * 
 	 * @param args
 	 */
 	public static void main(String[] args) {
@@ -22,13 +24,13 @@ public class OupscrkApp {
 			try {
 				ccPort = Integer.parseInt(args[0]);
 				proxyPort = Integer.parseInt(args[1]);
-			} catch(IllegalArgumentException e) {
+			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 			}
 		}
 
 		System.out.println("Control center on port : " + ccPort);
-		
+
 		try {
 			CommandCenter controlCenter = new CommandCenter(ccPort, proxyPort);
 			controlCenter.start();
@@ -38,7 +40,6 @@ public class OupscrkApp {
 			System.out.println("Control center stopped listening on port : " + ccPort);
 		}
 
-		
 	}
 
 }

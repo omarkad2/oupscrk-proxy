@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets;
 import org.json.JSONObject;
 import org.markware.oupscrk.http.HttpRequest;
 import org.markware.oupscrk.http.HttpResponse;
-import org.markware.oupscrk.ui.protocol.payloads.ReplayAttackPayload;
 import org.markware.oupscrk.ui.protocol.payloads.TCPClientPayload;
 import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 
@@ -17,14 +16,14 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 	/**
 	 * Payload
 	 */
-	private ReplayAttackPayload payload;
+	private TCPClientPayload payload;
 	
 	/**
 	 * Constructor
 	 * @param payload
 	 */
 	public TCPClientExpositionStartegy(String payload) {
-		this.payload = ReplayAttackPayload.payloadDecoder(payload);
+		this.payload = TCPClientPayload.payloadDecoder(payload);
 	}
 	
 	/**
