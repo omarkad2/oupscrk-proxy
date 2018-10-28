@@ -114,8 +114,6 @@ public class DefaultReplayAttackStrategy implements ReplayAttackStrategy {
 							os.close();
 						}
 
-//						conn.connect();
-
 						HttpResponse httpResponse = HttpResponseParser.parseResponse(conn);
 						
 						// Send results back (request + response)

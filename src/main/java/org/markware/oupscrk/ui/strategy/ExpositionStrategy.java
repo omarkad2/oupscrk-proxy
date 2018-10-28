@@ -5,8 +5,20 @@ import java.io.IOException;
 import org.markware.oupscrk.http.HttpRequest;
 import org.markware.oupscrk.http.HttpResponse;
 
+/**
+ * Exposition strategy
+ * @author citestra
+ *
+ */
 public interface ExpositionStrategy {
 
-	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException;
+	/**
+	 * Expose http exchange
+	 * @param httpRequest
+	 * @param httpResponse
+	 * @param contentType
+	 * @throws IOException
+	 */
+	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse, String contentType) throws IOException;
 	
 }

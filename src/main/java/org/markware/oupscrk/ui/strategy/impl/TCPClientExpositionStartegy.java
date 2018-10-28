@@ -31,7 +31,7 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 	 * @throws IOException 
 	 */
 	@Override
-	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException{
+	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse, String contentType) throws IOException{
 		OutputStreamWriter out = null;
 		Socket expositionSocket = null;
 		try {
@@ -40,6 +40,7 @@ public class TCPClientExpositionStartegy implements ExpositionStrategy {
 			JSONObject combined = new JSONObject();
 			combined.put("request", new JSONObject(httpRequest));
 			combined.put("response", new JSONObject(httpResponse));
+			combined.put("contentType", contentType);
 			out.write(combined.toString());
 			out.flush();
 		} finally {

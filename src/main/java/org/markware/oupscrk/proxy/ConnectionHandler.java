@@ -300,7 +300,7 @@ public class ConnectionHandler implements Runnable {
 						read = streamToSend.read(bodyChunk, 0, BUFFER_SIZE );
 					}
 					this.proxyToClientBw.flush();
-					displayInfo(httpRequest, httpResponse);
+					displayInfo(httpRequest, httpResponse, conn.getContentType());
 				}
 			}
 		} catch(IOException | DataFormatException | CertificateEncodingException e) {
@@ -463,9 +463,9 @@ public class ConnectionHandler implements Runnable {
 	 * @param httpResponse
 	 * @throws IOException
 	 */
-	public synchronized void displayInfo(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException {
+	public synchronized void displayInfo(HttpRequest httpRequest, HttpResponse httpResponse, String contentType) throws IOException {
 		if (this.expositionStrategy != null) {
-			this.expositionStrategy.exposeExchange(httpRequest, httpResponse);
+			this.expositionStrategy.exposeExchange(httpRequest, httpResponse, contentType);
 		}
 	}
 	

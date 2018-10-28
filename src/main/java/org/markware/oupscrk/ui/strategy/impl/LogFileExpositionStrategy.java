@@ -15,7 +15,7 @@ public class LogFileExpositionStrategy implements ExpositionStrategy {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse) throws IOException {
+	public void exposeExchange(HttpRequest httpRequest, HttpResponse httpResponse, String contentType) throws IOException {
 		BufferedWriter writer = null;
 		try {
 			writer = new BufferedWriter(new FileWriter("logs/" + httpRequest.getHostname()));
