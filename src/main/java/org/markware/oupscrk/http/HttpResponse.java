@@ -74,7 +74,7 @@ public class HttpResponse {
      * @throws IOException 
      */
     public void tamperWithBody(Map<String, String> replacements, String contentType) throws IOException {
-    	if (replacements != null && "text/html".equalsIgnoreCase(contentType)) {
+    	if (replacements != null && !contentType.contains("image") && !contentType.contains("video")) {
     		replacements.entrySet().stream().forEach((entry) -> {
     			this.plainResponseBody = 
     					this.plainResponseBody.replaceAll(entry.getKey(), entry.getValue());
