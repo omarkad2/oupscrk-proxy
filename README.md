@@ -1,11 +1,11 @@
-Oupscrk-proxy is a HTTP/HTTPS Proxy written in Java. You can intercept HTTP and HTTPS traffic, and display the intercepted stream *Deciphered* and *Decoded*.
+# Oupscrk-proxy is a HTTP/HTTPS Proxy written in Java.
 
 ## Website
 Visit the website [Oupscrk](https://oupscrk.com) for a production-ready release.
 
 ## Features
 
-- Expose all HTTP/HTTPS traffic in plain-text
+- Expose all HTTP/HTTPS traffic in plain-text *Deciphered* and *Decoded*
 - Tamper with HTTP/HTTPS Requests
 - Tamper with HTTP/HTTPS Responses
 - Perform Replay Attacks
