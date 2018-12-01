@@ -41,6 +41,9 @@
 		<!-- Standalone Proxy -->
 		<profile>
 			<id>standalone</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
@@ -63,12 +66,9 @@
 			</build>
 		</profile>
 
-		<!-- CommandCenter Proxy(activated by default) -->
+		<!-- CommandCenter Proxy (activated by default) -->
 		<profile>
 			<id>ui</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
 			<build>
 				<plugins>
 					<plugin>
