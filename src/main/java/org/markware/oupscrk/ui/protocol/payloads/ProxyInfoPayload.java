@@ -39,6 +39,7 @@ public class ProxyInfoPayload {
 		return jsonObj.toString();
 	}
 
+	////////////////////////////////////GETTERS/SETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public String getHostname() {
 		return hostname;
 	}

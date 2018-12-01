@@ -124,6 +124,10 @@ public class HttpRequest {
         body.append(bodyLine).append("\r\n");
     }
     
+    /**
+     * Build HttpRequest attributes
+     * @throws IOException
+     */
     public void interpretRawUri() throws IOException {
     	if (this.path.startsWith("/")) {
     		buildUrl();
@@ -197,6 +201,12 @@ public class HttpRequest {
     	return contains;
     }
     
+    /**
+     * Replace a string in body or query
+     * @param str string to be replaced
+     * @param replacement string to inject
+     * @return Tampered HttpRequest
+     */
     public HttpRequest replaceString(String str, String replacement) {
     	HttpRequest httpRequest = new HttpRequest(this);
     	if (str != null && replacement != null && (this.body != null || this.query != null)) {
@@ -206,14 +216,6 @@ public class HttpRequest {
     	return httpRequest;
     }
     
-    public StringBuffer getBody() {
-		return body;
-	}
-
-	public void setBody(StringBuffer body) {
-		this.body = body;
-	}
-
 	/**
      * Build url 
      * @throws MalformedURLException
@@ -224,7 +226,7 @@ public class HttpRequest {
 				new URL(String.format("https://%s%s", getHeaderParam("Host"), this.path));
     }
     
-    // ******************************* GETTERS ******************************************
+    // ******************************* GETTERS/SETTERS ******************************************
     public String getRequestLine() {
         return requestLine;
     }
@@ -285,7 +287,14 @@ public class HttpRequest {
 		return headers;
 	}
 
-	// ******************************* GETTERS ******************************************
+	public StringBuffer getBody() {
+		return body;
+	}
+
+	public void setBody(StringBuffer body) {
+		this.body = body;
+	}
+
 	public void setRequestLine(String requestLine) {
 		this.requestLine = requestLine;
 	}

@@ -13,9 +13,9 @@ import org.markware.oupscrk.ui.CommandCenter;
 public class OupscrkApp {
 
 	/**
-	 * Main method
+	 * Main method for Proxy UI
 	 * 
-	 * @param args
+	 * @param args [0] port (optional)
 	 */
 	public static void main(String[] args) {
 		int ccPort = 10001;

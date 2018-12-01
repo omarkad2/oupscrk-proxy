@@ -72,6 +72,7 @@ public class ReplayAttackPayload {
 		}
 		return list;
 	}
+	
 	///////////////////////////////////// GETTERS/SETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public String getHostname() {
 		return hostname;

@@ -16,6 +16,9 @@ import org.markware.oupscrk.utils.CompressionUtils;
  */
 public class HttpResponseParser {
 
+	/**
+	 * Buffer size
+	 */
 	private final static int BUFFER_SIZE = 65536;
 	
 	/**

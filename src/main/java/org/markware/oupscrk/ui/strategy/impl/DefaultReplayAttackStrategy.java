@@ -26,7 +26,7 @@ import org.markware.oupscrk.http.parser.HttpResponseParser;
 import org.markware.oupscrk.ui.protocol.payloads.ReplayAttackPayload;
 import org.markware.oupscrk.ui.strategy.ReplayAttackStrategy;
 /**
- * Default strategy TODO: Use factory only one instance is allowed
+ * Default strategy (TODO: Use factory only one instance is allowed)
  * @author citestra
  *
  */

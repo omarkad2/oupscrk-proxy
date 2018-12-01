@@ -9,6 +9,7 @@ import org.markware.oupscrk.ui.strategy.ExpositionStrategy;
 import org.markware.oupscrk.ui.strategy.ReplayAttackStrategy;
 import org.markware.oupscrk.ui.strategy.RequestHandlingStrategy;
 import org.markware.oupscrk.ui.strategy.ResponseHandlingStrategy;
+import org.markware.oupscrk.ui.strategy.impl.LogFileExpositionStrategy;
 
 /**
  * Proxy Server
@@ -67,6 +68,8 @@ public class ProxyServer {
 		this.port = port;
 		this.proxySocket = new ServerSocket(port);
 		this.sslResource = sslResource;
+		//Define default exposition strategy
+		this.expositionStrategy = new LogFileExpositionStrategy();
 	}
 
 	/**

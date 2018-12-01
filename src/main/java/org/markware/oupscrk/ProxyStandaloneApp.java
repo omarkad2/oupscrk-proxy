@@ -14,7 +14,7 @@ public class ProxyStandaloneApp {
 
 	/**
 	 * Main method
-	 * @param args [0] port (optional)
+	 * @param args [0] port (optional) by default 9999
 	 * @throws IOException 
 	 */
 	public static void main(String[] args) {

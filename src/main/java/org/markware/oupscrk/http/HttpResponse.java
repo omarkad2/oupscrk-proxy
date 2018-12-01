@@ -50,6 +50,10 @@ public class HttpResponse {
 	 */
 	private String contentEncoding;
 	
+	/**
+	 * 
+	 * @return is HttpResponse empty ?
+	 */
 	public boolean isNotBlank() {
 		return this.statusLine != null && !this.statusLine.isEmpty() && this.headers!= null && !this.headers.isEmpty();
 	}

@@ -39,6 +39,7 @@ public class TCPClientPayload {
 		
 	}
 
+	////////////////////////////////////GETTERS/SETTERS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 	public String getHostname() {
 		return hostname;
 	}

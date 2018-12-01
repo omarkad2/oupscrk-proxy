@@ -11,7 +11,7 @@ import java.security.cert.X509Certificate;
 import org.markware.oupscrk.utils.SecurityUtils;
 
 /**
- * SSL resource loader
+ * SSL resource loader (TODO: generate new ssl config when it is first use)
  * @author citestra
  *
  */
